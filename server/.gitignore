@@ -1,0 +1,5 @@
+# Dart / shelf server
+.dart_tool/
+build/
+*.log
+pubspec.lock
