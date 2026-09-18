@@ -11,7 +11,7 @@
 library;
 
 /// Which backend the app talks to.
-enum BackendKind { local, supabase, firebase }
+enum BackendKind { local, supabase, firebase, cloudflare }
 
 class AppConfig {
   AppConfig._(); // static config only — no instances
@@ -23,6 +23,7 @@ class AppConfig {
   static BackendKind get backend => switch (backendName) {
         'supabase' => BackendKind.supabase,
         'firebase' => BackendKind.firebase,
+        'cloudflare' => BackendKind.cloudflare,
         _ => BackendKind.local,
       };
 
@@ -32,6 +33,12 @@ class AppConfig {
   static String get localBaseUrl => const String.fromEnvironment(
         'LOCAL_BASE_URL',
         defaultValue: 'http://127.0.0.1:8081',
+      );
+
+  /// Base URL of the Cloudflare Workers backend (see workers/).
+  static String get cloudflareBaseUrl => const String.fromEnvironment(
+        'CLOUDFLARE_BASE_URL',
+        defaultValue: '',
       );
 
   // ── Supabase (placeholder) ─────────────────────────────────────────────────

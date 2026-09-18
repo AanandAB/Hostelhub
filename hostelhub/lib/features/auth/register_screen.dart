@@ -6,6 +6,8 @@ import '../../core/theme/app_colors.dart';
 import '../../presentation/widgets/glass.dart';
 import 'auth_controller.dart';
 
+/// Owner-only sign-up. Inmates are onboarded by their owner (auto-generated
+/// credentials), so they never self-register.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -18,7 +20,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phone = TextEditingController();
   final _username = TextEditingController();
   final _password = TextEditingController();
-  bool _owner = true;
   bool _loading = false;
 
   @override
@@ -39,7 +40,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
     setState(() => _loading = true);
     final error = await ref.read(authControllerProvider.notifier).register(
-          role: _owner ? 'owner' : 'inmate',
+          role: 'owner',
           name: _name.text.trim(),
           phone: _phone.text.trim(),
           username: _username.text.trim(),
@@ -71,33 +72,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   Text('Create account', style: textTheme.displayLarge),
                   const SizedBox(height: 6),
-                  Text('Hostel owner or inmate — pick your role.',
+                  Text('Create your account as a property owner.',
                       style: textTheme.bodyMedium),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _RolePill(
-                          label: 'Hostel owner',
-                          icon: Icons.apartment_rounded,
-                          selected: _owner,
-                          onTap: () => setState(() => _owner = true),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _RolePill(
-                          label: 'Inmate',
-                          icon: Icons.person_rounded,
-                          selected: !_owner,
-                          onTap: () => setState(() => _owner = false),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
                   GlassTextField(
-                      controller: _name, label: 'Full name', icon: Icons.badge_outlined),
+                      controller: _name,
+                      label: 'Full name',
+                      icon: Icons.badge_outlined),
                   const SizedBox(height: 14),
                   GlassTextField(
                     controller: _phone,
@@ -107,10 +88,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
                   GlassTextField(
-                      controller: _username, label: 'Username', icon: Icons.person_outline),
+                      controller: _username,
+                      label: 'Username',
+                      icon: Icons.person_outline),
                   const SizedBox(height: 14),
                   GlassTextField(
-                      controller: _password, label: 'Password', icon: Icons.lock_outline, obscure: true),
+                      controller: _password,
+                      label: 'Password',
+                      icon: Icons.lock_outline,
+                      obscure: true),
                   const SizedBox(height: 24),
                   GlassButton(
                     label: 'Create account',
@@ -121,7 +107,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Already have an account? ', style: textTheme.bodyMedium),
+                      Text('Already have an account? ',
+                          style: textTheme.bodyMedium),
                       GestureDetector(
                         onTap: () => context.go('/login'),
                         child: Text(
@@ -138,50 +125,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RolePill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RolePill({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = isDark ? AppColors.primaryDark : AppColors.primary;
-    final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        tint: selected ? primary.withValues(alpha: 0.18) : null,
-        child: Column(
-          children: [
-            Icon(icon, color: selected ? primary : muted, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? primary : muted,
-              ),
-            ),
-          ],
         ),
       ),
     );

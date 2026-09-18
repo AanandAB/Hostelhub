@@ -234,6 +234,7 @@ Router _router() {
       'address': body['address'],
       'type': type,
       'features': features,
+      'rent_amount': body['rent_amount'] ?? 0,
       'rent_slabs': body['rent_slabs'] ?? const [],
       'mess_charges': body['mess_charges'] ?? const {},
     };
@@ -402,28 +403,31 @@ Router _router() {
   router.post('/inmates', (Request req) async {
     final body = await _body(req);
     final name = body['name'] as String;
-    final roomId = body['room_id'] as String;
-    final room = _rooms.firstWhere((r) => r['id'] == roomId,
-        orElse: () => {'room_no': '?'});
-    // Capacity enforcement: a room can hold at most `capacity` inmates.
-    final capacity = room['capacity'] as int? ?? 1;
-    final occupied = _inmates.where((i) => i['room_id'] == roomId).length;
-    if (occupied >= capacity) {
-      return _json(
-          {'error': 'Room ${room['room_no']} is full ($occupied/$capacity)'},
-          409);
-    }
-    // Bed assignment must be in range and unique within the room.
-    final bedNo = body['bed_no'] as int? ?? 1;
-    if (bedNo < 1 || bedNo > capacity) {
-      return _json({'error': 'Bed $bedNo is out of range (1-$capacity)'}, 409);
-    }
-    final bedTaken = _inmates.any(
-        (i) => i['room_id'] == roomId && i['bed_no'] == bedNo);
-    if (bedTaken) {
-      return _json(
-          {'error': 'Bed $bedNo in room ${room['room_no']} is already taken'},
-          409);
+    final roomId = body['room_id'] as String? ?? '';
+    String roomNo = '';
+    int bedNo = 0;
+    // Room/bed assignment only applies to room-based properties (hostel/PG).
+    // Houses & offices have no rooms — rent is per property.
+    if (roomId.isNotEmpty) {
+      final room = _rooms.firstWhere((r) => r['id'] == roomId,
+          orElse: () => {'room_no': '?'});
+      roomNo = room['room_no'] as String? ?? '?';
+      final capacity = room['capacity'] as int? ?? 1;
+      final occupied = _inmates.where((i) => i['room_id'] == roomId).length;
+      if (occupied >= capacity) {
+        return _json(
+            {'error': 'Room $roomNo is full ($occupied/$capacity)'}, 409);
+      }
+      bedNo = body['bed_no'] as int? ?? 1;
+      if (bedNo < 1 || bedNo > capacity) {
+        return _json({'error': 'Bed $bedNo is out of range (1-$capacity)'}, 409);
+      }
+      final bedTaken = _inmates.any(
+          (i) => i['room_id'] == roomId && i['bed_no'] == bedNo);
+      if (bedTaken) {
+        return _json(
+            {'error': 'Bed $bedNo in room $roomNo is already taken'}, 409);
+      }
     }
     final id = _nextId('user');
     final username = _genUsername(name);
@@ -435,7 +439,7 @@ Router _router() {
       'phone': body['phone'] ?? '',
       'username': username,
       'room_id': roomId,
-      'room_no': room['room_no'],
+      'room_no': roomNo,
       'bed_no': bedNo,
       'rent_amount': body['rent_amount'] ?? 0,
       'due_day': body['due_day'] ?? 1,

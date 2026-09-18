@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
+import '../../data/models/property.dart';
 import '../../data/models/room.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
@@ -25,6 +26,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
   final _rent = TextEditingController();
   final _dueDay = TextEditingController(text: '1');
   String? _roomId;
+  bool _rentSeeded = false;
   bool _busy = false;
 
   @override
@@ -37,16 +39,22 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
     super.dispose();
   }
 
-  Future<void> _submit(String propertyId) async {
-    if (_name.text.trim().isEmpty || _roomId == null) {
-      _snack('Enter a name and pick a room');
+  Future<void> _submit(Property prop) async {
+    final isRoomBased = prop.isHostelOrPg;
+    if (_name.text.trim().isEmpty) {
+      _snack('Enter a name');
+      return;
+    }
+    if (isRoomBased && _roomId == null) {
+      _snack('Pick a room');
       return;
     }
     final bed = int.tryParse(_bedNo.text.trim()) ?? 1;
+    if (isRoomBased) {
     // Capacity + bed-uniqueness enforcement.
-    final rooms = ref.read(roomsProvider(propertyId)).value ?? const <Room>[];
+    final rooms = ref.read(roomsProvider(prop.id)).value ?? const <Room>[];
     final inmates =
-        ref.read(inmatesProvider(propertyId)).value ?? const <Inmate>[];
+        ref.read(inmatesProvider(prop.id)).value ?? const <Inmate>[];
     Room? room;
     for (final r in rooms) {
       if (r.id == _roomId) {
@@ -71,21 +79,22 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
         return;
       }
     }
+    }
     final rent = int.tryParse(_rent.text.trim()) ?? 0;
     final due = int.tryParse(_dueDay.text.trim()) ?? 1;
     setState(() => _busy = true);
     try {
       final result = await ref.read(backendProvider).inmates.createInmate(
-            propertyId: propertyId,
+            propertyId: prop.id,
             name: _name.text.trim(),
             phone: _phone.text.trim(),
-            roomId: _roomId!,
-            bedNo: bed,
+            roomId: isRoomBased ? _roomId! : '',
+            bedNo: isRoomBased ? bed : 0,
             rentAmount: rent,
             dueDay: due,
             joinDate: DateTime.now().toIso8601String().substring(0, 10),
           );
-      ref.invalidate(inmatesProvider(propertyId));
+      ref.invalidate(inmatesProvider(prop.id));
       if (!mounted) return;
       setState(() => _busy = false);
       await _showCredentials(result.inmate.username, result.password);
@@ -192,7 +201,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
                     child:
                         Text('Set up your hostel first.', style: textTheme.bodyMedium));
               }
-              return _form(prop.id, textTheme);
+              return _form(prop, textTheme);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, _) =>
@@ -203,10 +212,15 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
     );
   }
 
-  Widget _form(String propertyId, TextTheme textTheme) {
-    final roomsAsync = ref.watch(roomsProvider(propertyId));
+  Widget _form(Property prop, TextTheme textTheme) {
+    final isRoomBased = prop.isHostelOrPg;
+    if (!_rentSeeded && prop.rentAmount > 0) {
+      _rentSeeded = true;
+      _rent.text = '${prop.rentAmount}';
+    }
+    final roomsAsync = ref.watch(roomsProvider(prop.id));
     final inmates =
-        ref.watch(inmatesProvider(propertyId)).value ?? const <Inmate>[];
+        ref.watch(inmatesProvider(prop.id)).value ?? const <Inmate>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -221,45 +235,55 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
               label: 'Phone',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone),
-          const SizedBox(height: 20),
-          Text('Room', style: textTheme.titleMedium),
-          const SizedBox(height: 10),
-          roomsAsync.when(
-            data: (rooms) => rooms.isEmpty
-                ? Text('No rooms yet — add rooms first.',
-                    style: textTheme.bodySmall)
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final r in rooms) _buildRoomChip(r, inmates),
-                    ],
-                  ),
-            loading: () => const SizedBox(
-                height: 20,
-                child: Center(child: CircularProgressIndicator())),
-            error: (_, _) => Text('Error loading rooms', style: textTheme.bodySmall),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: GlassTextField(
-                    controller: _bedNo,
-                    label: 'Bed no.',
-                    icon: Icons.bed_outlined,
-                    keyboardType: TextInputType.number),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GlassTextField(
-                    controller: _rent,
-                    label: 'Rent (₹/mo)',
-                    icon: Icons.currency_rupee,
-                    keyboardType: TextInputType.number),
-              ),
-            ],
-          ),
+          if (isRoomBased) ...[
+            const SizedBox(height: 20),
+            Text('Room', style: textTheme.titleMedium),
+            const SizedBox(height: 10),
+            roomsAsync.when(
+              data: (rooms) => rooms.isEmpty
+                  ? Text('No rooms yet — add rooms first.',
+                      style: textTheme.bodySmall)
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final r in rooms) _buildRoomChip(r, inmates),
+                      ],
+                    ),
+              loading: () => const SizedBox(
+                  height: 20,
+                  child: Center(child: CircularProgressIndicator())),
+              error: (_, _) =>
+                  Text('Error loading rooms', style: textTheme.bodySmall),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: GlassTextField(
+                      controller: _bedNo,
+                      label: 'Bed no.',
+                      icon: Icons.bed_outlined,
+                      keyboardType: TextInputType.number),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GlassTextField(
+                      controller: _rent,
+                      label: 'Rent (₹/mo)',
+                      icon: Icons.currency_rupee,
+                      keyboardType: TextInputType.number),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            GlassTextField(
+                controller: _rent,
+                label: 'Rent (₹/mo)',
+                icon: Icons.currency_rupee,
+                keyboardType: TextInputType.number),
+          ],
           const SizedBox(height: 14),
           GlassTextField(
               controller: _dueDay,
@@ -268,9 +292,9 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
               keyboardType: TextInputType.number),
           const SizedBox(height: 28),
           GlassButton(
-              label: 'Add inmate',
+              label: isRoomBased ? 'Add inmate' : 'Add tenant',
               loading: _busy,
-              onPressed: () => _submit(propertyId)),
+              onPressed: () => _submit(prop)),
           const SizedBox(height: 16),
         ],
       ),

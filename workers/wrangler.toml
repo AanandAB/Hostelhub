@@ -1,0 +1,27 @@
+# HostelHub — Cloudflare Workers backend
+#
+# This is the production backend. It mirrors the same REST API as the local
+# Dart `server/` (so the Flutter app talks to it unchanged), but runs on
+# Cloudflare Workers + D1 with per-tenant isolation.
+#
+# To deploy (later, with your own Cloudflare account):
+#   cd workers
+#   npm install
+#   npx wrangler d1 create hostelhub            # once — copy the database_id
+#   # paste the database_id into the d1_databases block below
+#   npx wrangler d1 execute hostelhub --local --file=./schema.sql   # local dev
+#   npx wrangler d1 execute hostelhub --remote --file=./schema.sql  # production
+#   npx wrangler deploy
+
+name = "hostelhub"
+main = "src/index.ts"
+compatibility_date = "2026-09-19"
+
+[[d1_databases]]
+binding = "DB"        # available as `env.DB` inside the Worker
+database_name = "hostelhub"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Secrets (set with `npx wrangler secret put`):
+#   JWT_SECRET  — signing key for auth tokens
+#   ADMIN_USER / ADMIN_PASSWORD — super-admin login (optional; default admin/admin123)

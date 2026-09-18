@@ -58,5 +58,19 @@ final backendProvider = Provider<Backend>((ref) {
         admin: LocalAdminRepository(api),
         payments: payments,
       );
+    case BackendKind.cloudflare:
+      // Same REST contract as the local server, hosted on Workers + D1.
+      final api = LocalApiClient(baseUrl: AppConfig.cloudflareBaseUrl);
+      return Backend(
+        auth: LocalAuthRepository(api),
+        properties: LocalPropertyRepository(api),
+        rooms: LocalRoomRepository(api),
+        inmates: LocalInmateRepository(api),
+        rent: LocalRentRepository(api),
+        polls: LocalPollRepository(api),
+        ops: LocalOpsRepository(api),
+        admin: LocalAdminRepository(api),
+        payments: payments,
+      );
   }
 });

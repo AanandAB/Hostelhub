@@ -36,6 +36,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final _address = TextEditingController();
   final _roomNo = TextEditingController();
   final _capacity = TextEditingController();
+  final _rentAmount = TextEditingController();
   final List<Room> _rooms = [];
 
   @override
@@ -44,6 +45,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     _address.dispose();
     _roomNo.dispose();
     _capacity.dispose();
+    _rentAmount.dispose();
     super.dispose();
   }
 
@@ -66,15 +68,19 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               name: _name.text.trim(),
               address: _address.text.trim(),
               type: _type,
+              rentAmount: int.tryParse(_rentAmount.text.trim()) ?? 0,
             ),
           );
       _propertyId = prop.id;
       ref.invalidate(propertiesProvider);
       ref.invalidate(currentPropertyProvider);
-      setState(() {
-        _busy = false;
-        _step = 1;
-      });
+      setState(() => _busy = false);
+      // Houses & offices have no rooms — rent is per property, so finish here.
+      if (_type == 'hostel' || _type == 'pg') {
+        setState(() => _step = 1);
+      } else {
+        _finish();
+      }
     } catch (e) {
       setState(() => _busy = false);
       _snack('Could not create hostel: $e');
@@ -145,7 +151,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_step == 0 ? 'Set up your hostel' : 'Add rooms'),
+        title: Text(_step == 0 ? 'Set up your property' : 'Add rooms'),
         backgroundColor: Colors.transparent,
       ),
       extendBodyBehindAppBar: true,
@@ -191,6 +197,16 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 _typeChip(t.$1, t.$2, _type == t.$1),
             ],
           ),
+          if (_type == 'house' || _type == 'office') ...[
+            const SizedBox(height: 20),
+            Text('Monthly rent', style: textTheme.titleMedium),
+            const SizedBox(height: 10),
+            GlassTextField(
+                controller: _rentAmount,
+                label: 'Rent (₹/mo)',
+                icon: Icons.currency_rupee,
+                keyboardType: TextInputType.number),
+          ],
           const SizedBox(height: 40),
           GlassButton(label: 'Next', loading: _busy, onPressed: _next),
           const SizedBox(height: 16),

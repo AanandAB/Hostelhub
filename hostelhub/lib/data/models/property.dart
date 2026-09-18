@@ -13,6 +13,9 @@ class Property {
   /// Owner-controlled feature toggles, e.g. {mess: true}.
   final Map<String, bool> features;
 
+  /// Monthly rent for the whole property (houses/offices have no rooms).
+  final int rentAmount;
+
   /// e.g. [{room_type: 'single', amount: 7000}, ...]
   final List<Map<String, dynamic>> rentSlabs;
 
@@ -26,6 +29,7 @@ class Property {
     this.address,
     this.type = 'hostel',
     this.features = const {},
+    this.rentAmount = 0,
     this.rentSlabs = const [],
     this.messCharges = const {},
   });
@@ -45,6 +49,7 @@ class Property {
         type: json['type'] as String? ?? 'hostel',
         features: Map<String, bool>.from(
             json['features'] as Map? ?? const {}),
+        rentAmount: (json['rent_amount'] as num?)?.toInt() ?? 0,
         rentSlabs: List<Map<String, dynamic>>.from(
             json['rent_slabs'] as List? ?? const []),
         messCharges:
@@ -58,6 +63,7 @@ class Property {
         'address': address,
         'type': type,
         'features': features,
+        'rent_amount': rentAmount,
         'rent_slabs': rentSlabs,
         'mess_charges': messCharges,
       };

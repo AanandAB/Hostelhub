@@ -156,41 +156,45 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                 onPressed: () => context.push('/inmates/new'),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GlassButton(
-                label: 'Add room',
-                icon: Icons.add_rounded,
-                color: primary.withValues(alpha: 0.8),
-                onPressed: () => _showAddRoomDialog(prop),
+            if (prop.isHostelOrPg) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: GlassButton(
+                  label: 'Add room',
+                  icon: Icons.add_rounded,
+                  color: primary.withValues(alpha: 0.8),
+                  onPressed: () => _showAddRoomDialog(prop),
+                ),
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: 24),
-        Text('Rooms', style: textTheme.titleLarge),
-        const SizedBox(height: 12),
-        roomsAsync.when(
-          data: (rooms) {
-            final inmates = inmatesAsync.value ?? const [];
-            if (rooms.isEmpty) {
-              return Text('No rooms yet — add your first room.',
-                  style: textTheme.bodyMedium);
-            }
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final r in rooms)
-                  _roomCard(r, inmates.where((i) => i.roomId == r.id).length,
-                      primary),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) =>
-              Text('Error loading rooms', style: textTheme.bodyMedium),
-        ),
+        if (prop.isHostelOrPg) ...[
+          const SizedBox(height: 24),
+          Text('Rooms', style: textTheme.titleLarge),
+          const SizedBox(height: 12),
+          roomsAsync.when(
+            data: (rooms) {
+              final inmates = inmatesAsync.value ?? const [];
+              if (rooms.isEmpty) {
+                return Text('No rooms yet — add your first room.',
+                    style: textTheme.bodyMedium);
+              }
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final r in rooms)
+                    _roomCard(
+                        r, inmates.where((i) => i.roomId == r.id).length, primary),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, _) =>
+                Text('Error loading rooms', style: textTheme.bodyMedium),
+          ),
+        ],
         const SizedBox(height: 24),
         Text('Inmates', style: textTheme.titleLarge),
         const SizedBox(height: 12),
@@ -223,7 +227,10 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(i.name, style: textTheme.titleMedium),
-                                  Text('Room ${i.roomNo} · Bed ${i.bedNo}',
+                                  Text(
+                                      i.roomNo.isNotEmpty
+                                          ? 'Room ${i.roomNo} · Bed ${i.bedNo}'
+                                          : 'Tenant',
                                       style: textTheme.bodySmall),
                                 ],
                               ),
