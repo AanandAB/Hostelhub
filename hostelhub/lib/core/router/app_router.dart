@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/models/user.dart';
+import '../../features/admin/admin_panel_screen.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
@@ -57,14 +58,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.loading) {
         return loc == '/splash' ? null : '/splash';
       }
-      if (loggedIn && (onAuth || loc == '/splash')) return '/home';
+      if (loggedIn && (onAuth || loc == '/splash')) {
+        return auth.user!.role == UserRole.admin ? '/admin' : '/home';
+      }
       if (!loggedIn && !onAuth) return '/login';
+      if (auth.user?.role == UserRole.admin) {
+        return loc == '/admin' ? null : '/admin';
+      }
+      if (loc == '/admin') return '/home';
       if (ownerOnly && auth.user!.role != UserRole.owner) return '/home';
       if (inmateOnly && auth.user!.role != UserRole.inmate) return '/home';
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+      GoRoute(path: '/admin', builder: (_, _) => const AdminPanelScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
       GoRoute(path: '/home', builder: (_, _) => const AppShell()),

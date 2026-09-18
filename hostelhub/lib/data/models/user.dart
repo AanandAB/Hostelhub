@@ -1,5 +1,5 @@
 /// A person in the system: owner/manager, inmate/ward, or sub-manager.
-enum UserRole { owner, inmate, subManager }
+enum UserRole { owner, inmate, subManager, admin }
 
 class User {
   final String id;

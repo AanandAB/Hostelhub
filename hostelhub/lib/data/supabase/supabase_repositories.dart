@@ -8,6 +8,7 @@ import '../models/inmate.dart';
 import '../models/leave_record.dart';
 import '../models/notice.dart';
 import '../models/payment.dart';
+import '../models/pricing.dart';
 import '../models/poll.dart';
 import '../models/poll_response.dart';
 import '../models/property.dart';
@@ -231,4 +232,19 @@ class SupabaseOpsRepository implements OpsRepository {
       _n();
   @override
   Future<Document> createDocument(Document document) => _n();
+}
+
+class SupabaseAdminRepository implements AdminRepository {
+  @override
+  Future<PricingConfig> getPricing() =>
+      throw UnimplementedError('Supabase backend not wired');
+  @override
+  Future<PricingConfig> updatePricing(Pricing pricing) =>
+      throw UnimplementedError('Supabase backend not wired');
+  @override
+  Future<PricingConfig> setOverride(String ownerId, Pricing? pricing) =>
+      throw UnimplementedError('Supabase backend not wired');
+  @override
+  Future<List<User>> listOwners() =>
+      throw UnimplementedError('Supabase backend not wired');
 }

@@ -30,6 +30,7 @@ final backendProvider = Provider<Backend>((ref) {
         rent: SupabaseRentRepository(),
         polls: SupabasePollRepository(),
         ops: SupabaseOpsRepository(),
+        admin: SupabaseAdminRepository(),
         payments: payments,
       );
     case BackendKind.firebase:
@@ -41,6 +42,7 @@ final backendProvider = Provider<Backend>((ref) {
         rent: FirebaseRentRepository(),
         polls: FirebasePollRepository(),
         ops: FirebaseOpsRepository(),
+        admin: FirebaseAdminRepository(),
         payments: payments,
       );
     case BackendKind.local:
@@ -53,6 +55,7 @@ final backendProvider = Provider<Backend>((ref) {
         rent: LocalRentRepository(api),
         polls: LocalPollRepository(api),
         ops: LocalOpsRepository(api),
+        admin: LocalAdminRepository(api),
         payments: payments,
       );
   }

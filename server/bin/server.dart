@@ -47,6 +47,31 @@ Map<String, dynamic> _ensureSubscription(String ownerId) =>
               'expires_at': null,
             });
 
+/// Subscription rates (₹) — global plus per-owner overrides, editable from
+/// the admin panel.
+final Map<String, dynamic> _pricing = {
+  'monthly': 599,
+  'yearly': 5999,
+  'extra_property': 199,
+};
+final Map<String, Map<String, dynamic>> _pricingOverrides = {};
+
+/// Seed the super-admin account (username: `admin`, password: `admin123`).
+void _seedAdmin() {
+  _users.putIfAbsent(
+      'admin',
+      () => {
+            'id': 'admin',
+            'role': 'admin',
+            'property_id': null,
+            'name': 'Platform Admin',
+            'phone': '',
+            'username': 'admin',
+            'kyc_verified': false,
+            'password': 'admin123',
+          });
+}
+
 String _genUsername(String name) {
   final base = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   return '${base.isEmpty ? 'user' : base}${100 + _seq % 900}';
@@ -110,6 +135,7 @@ Future<Map<String, dynamic>> _body(Request req) async {
 
 Router _router() {
   final router = Router();
+  _seedAdmin();
 
   router.get('/health', (Request req) => _json({'status': 'ok'}));
 
@@ -256,6 +282,48 @@ Router _router() {
     final sub = _ensureSubscription(ownerId);
     sub['property_limit'] = (sub['property_limit'] as int? ?? 1) + 1;
     return _json({'subscription': sub});
+  });
+
+  // ── Admin: pricing + clients ──────────────────────────────────────────
+  router.get('/pricing', (Request req) {
+    return _json({
+      'pricing': {'global': _pricing, 'overrides': _pricingOverrides}
+    });
+  });
+
+  router.patch('/pricing', (Request req) async {
+    final body = await _body(req);
+    if (body['monthly'] is num) _pricing['monthly'] = body['monthly'];
+    if (body['yearly'] is num) _pricing['yearly'] = body['yearly'];
+    if (body['extra_property'] is num) {
+      _pricing['extra_property'] = body['extra_property'];
+    }
+    return _json({
+      'pricing': {'global': _pricing, 'overrides': _pricingOverrides}
+    });
+  });
+
+  router.patch('/pricing/overrides/<ownerId>',
+      (Request req, String ownerId) async {
+    final body = await _body(req);
+    if (body['clear'] == true) {
+      _pricingOverrides.remove(ownerId);
+    } else {
+      _pricingOverrides[ownerId] = {
+        'monthly': body['monthly'] ?? _pricing['monthly'],
+        'yearly': body['yearly'] ?? _pricing['yearly'],
+        'extra_property':
+            body['extra_property'] ?? _pricing['extra_property'],
+      };
+    }
+    return _json({
+      'pricing': {'global': _pricing, 'overrides': _pricingOverrides}
+    });
+  });
+
+  router.get('/owners', (Request req) {
+    final list = _users.values.where((u) => u['role'] == 'owner').toList();
+    return _json({'owners': list.map((u) => _publicUser(u)).toList()});
   });
 
   // ── Polls ─────────────────────────────────────────────────────────────

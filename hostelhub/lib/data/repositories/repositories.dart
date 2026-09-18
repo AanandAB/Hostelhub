@@ -11,6 +11,7 @@ import '../models/notice.dart';
 import '../models/payment.dart';
 import '../models/poll.dart';
 import '../models/poll_response.dart';
+import '../models/pricing.dart';
 import '../models/property.dart';
 import '../models/rating.dart';
 import '../models/rent_plan.dart';
@@ -150,6 +151,15 @@ abstract class OpsRepository {
   Future<Document> createDocument(Document document);
 }
 
+/// Super-admin (SaaS operator) surface: subscription pricing + client overrides.
+abstract class AdminRepository {
+  Future<PricingConfig> getPricing();
+  Future<PricingConfig> updatePricing(Pricing pricing);
+  /// Sets or clears (`pricing == null`) a per-owner override.
+  Future<PricingConfig> setOverride(String ownerId, Pricing? pricing);
+  Future<List<User>> listOwners();
+}
+
 /// Aggregate of every backend capability. Swapped wholesale by `backendProvider`
 /// based on `AppConfig.backend` — callers depend on these interfaces, never on
 /// a concrete implementation.
@@ -161,6 +171,7 @@ class Backend {
   final RentRepository rent;
   final PollRepository polls;
   final OpsRepository ops;
+  final AdminRepository admin;
   final PaymentGateway payments;
 
   const Backend({
@@ -171,6 +182,7 @@ class Backend {
     required this.rent,
     required this.polls,
     required this.ops,
+    required this.admin,
     required this.payments,
   });
 }

@@ -10,6 +10,7 @@ import '../models/notice.dart';
 import '../models/payment.dart';
 import '../models/poll.dart';
 import '../models/poll_response.dart';
+import '../models/pricing.dart';
 import '../models/property.dart';
 import '../models/rating.dart';
 import '../models/rent_plan.dart';
@@ -475,5 +476,33 @@ class LocalOpsRepository implements OpsRepository {
   Future<Document> createDocument(Document document) async {
     final json = await api.post('/documents', document.toJson());
     return Document.fromJson(json['document'] as Map<String, dynamic>);
+  }
+}
+
+class LocalAdminRepository implements AdminRepository {
+  final LocalApiClient api;
+  LocalAdminRepository(this.api);
+
+  PricingConfig _parse(Map<String, dynamic> json) =>
+      PricingConfig.fromJson(json['pricing'] as Map<String, dynamic>);
+
+  @override
+  Future<PricingConfig> getPricing() async => _parse(await api.get('/pricing'));
+
+  @override
+  Future<PricingConfig> updatePricing(Pricing pricing) async =>
+      _parse(await api.patch('/pricing', pricing.toJson()));
+
+  @override
+  Future<PricingConfig> setOverride(String ownerId, Pricing? pricing) async =>
+      _parse(await api.patch('/pricing/overrides/$ownerId',
+          pricing == null ? {'clear': true} : pricing.toJson()));
+
+  @override
+  Future<List<User>> listOwners() async {
+    final json = await api.get('/owners');
+    return (json['owners'] as List<dynamic>? ?? const [])
+        .map((e) => User.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
