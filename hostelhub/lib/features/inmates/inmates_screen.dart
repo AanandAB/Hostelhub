@@ -116,7 +116,7 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                         const SizedBox(height: 16),
                         GlassButton(
                           label: 'Set up your hostel',
-                          onPressed: () => context.go('/setup'),
+                          onPressed: () => context.push('/setup'),
                         ),
                       ],
                     ),
@@ -153,7 +153,7 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
               child: GlassButton(
                 label: 'Add inmate',
                 icon: Icons.person_add_alt_rounded,
-                onPressed: () => context.go('/inmates/new'),
+                onPressed: () => context.push('/inmates/new'),
               ),
             ),
             const SizedBox(width: 12),

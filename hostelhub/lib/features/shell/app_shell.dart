@@ -24,7 +24,8 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
-  List<_Tab> _tabsFor(UserRole role, bool messEnabled) {
+  List<_Tab> _tabsFor(UserRole role, bool messEnabled, bool rentEnabled,
+      bool noticesEnabled) {
     if (role == UserRole.owner) {
       return [
         _Tab(Icons.dashboard_rounded, 'Home', const HomeScreen()),
@@ -34,21 +35,30 @@ class _AppShellState extends ConsumerState<AppShell> {
         _Tab(Icons.more_horiz_rounded, 'More', const MoreScreen()),
       ];
     }
-    return const [
-      _Tab(Icons.home_rounded, 'Home', HomeScreen()),
-      _Tab(Icons.payments_rounded, 'Payments', PaymentsScreen()),
-      _Tab(Icons.campaign_rounded, 'Notices', NoticesScreen()),
-      _Tab(Icons.more_horiz_rounded, 'More', MoreScreen()),
+    return [
+      _Tab(Icons.home_rounded, 'Home', const HomeScreen()),
+      if (rentEnabled)
+        _Tab(Icons.payments_rounded, 'Payments', const PaymentsScreen()),
+      if (noticesEnabled)
+        _Tab(Icons.campaign_rounded, 'Notices', const NoticesScreen()),
+      _Tab(Icons.more_horiz_rounded, 'More', const MoreScreen()),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final role =
-        ref.watch(authControllerProvider).user?.role ?? UserRole.inmate;
-    final prop = ref.watch(currentPropertyProvider).value;
+    final user = ref.watch(authControllerProvider).user;
+    final role = user?.role ?? UserRole.inmate;
+    final isOwner = role == UserRole.owner;
+    final prop = isOwner
+        ? ref.watch(currentPropertyProvider).value
+        : ((user?.propertyId ?? '').isNotEmpty
+            ? ref.watch(propertyProvider(user!.propertyId!)).value
+            : null);
     final messEnabled = prop?.featureEnabled('mess') ?? true;
-    final tabs = _tabsFor(role, messEnabled);
+    final rentEnabled = prop?.featureEnabled('rent') ?? true;
+    final noticesEnabled = prop?.featureEnabled('notices') ?? true;
+    final tabs = _tabsFor(role, messEnabled, rentEnabled, noticesEnabled);
 
     // Android back button: on a non-home tab, return to Home instead of
     // exiting the app; on Home, let the system back behave normally.

@@ -166,7 +166,7 @@ class HomeScreen extends ConsumerWidget {
               GlassButton(
                 label: 'Get started',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: () => context.go('/setup'),
+                onPressed: () => context.push('/setup'),
               ),
             ],
           ),
@@ -234,6 +234,8 @@ class HomeScreen extends ConsumerWidget {
         ? null
         : ref.watch(propertyProvider(propertyId)).value;
     final messEnabled = property?.featureEnabled('mess') ?? true;
+    final rentEnabled = property?.featureEnabled('rent') ?? true;
+    final sosEnabled = property?.featureEnabled('sos') ?? true;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
@@ -244,8 +246,9 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(height: 4),
         Text('Inmate · Your stay at a glance', style: textTheme.bodyMedium),
         const SizedBox(height: 24),
-        GlassCard(
-          child: plan == null
+        if (rentEnabled) ...[
+          GlassCard(
+            child: plan == null
               ? Text('Your owner has not set your rent yet.',
                   style: textTheme.bodyMedium)
               : Column(
@@ -286,13 +289,16 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-        ),
+          ),
+        ],
         if (messEnabled && latestPoll != null) ...[
           const SizedBox(height: 14),
           InmatePollCard(poll: latestPoll, inmateId: inmateId),
         ],
-        const SizedBox(height: 14),
-        _sosButton(context, ref, user),
+        if (sosEnabled) ...[
+          const SizedBox(height: 14),
+          _sosButton(context, ref, user),
+        ],
       ],
     );
   }
@@ -447,6 +453,11 @@ class MoreScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final isOwner = user?.role == UserRole.owner;
     final propertyId = ref.watch(currentPropertyProvider).value?.id ?? '';
+    final inmateProp = (!isOwner &&
+            user != null &&
+            (user.propertyId ?? '').isNotEmpty)
+        ? ref.watch(propertyProvider(user.propertyId!)).value
+        : null;
 
     return GlassBackground(
       dark: isDark,
@@ -459,7 +470,7 @@ class MoreScreen extends ConsumerWidget {
             if (isOwner)
               ..._ownerItems(context, propertyId)
             else
-              ..._inmateItems(context, user),
+              ..._inmateItems(context, user, inmateProp),
             const SizedBox(height: 16),
             GlassCard(
               child: Column(
@@ -489,9 +500,9 @@ class MoreScreen extends ConsumerWidget {
   List<Widget> _ownerItems(BuildContext context, String propertyId) {
     return [
       _menuItem(context, Icons.report_problem_rounded, 'Complaints',
-          () => context.go('/complaints')),
+          () => context.push('/complaints')),
       _menuItem(context, Icons.chat_bubble_rounded, 'Chat',
-          () => context.go('/chat')),
+          () => context.push('/chat')),
       _menuItem(context, Icons.campaign_rounded, 'Post notice', () {
         if (propertyId.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -504,48 +515,56 @@ class MoreScreen extends ConsumerWidget {
         );
       }),
       _menuItem(context, Icons.people_rounded, 'Visitors',
-          () => context.go('/visitors')),
+          () => context.push('/visitors')),
       _menuItem(context, Icons.directions_walk_rounded, 'Leave / attendance',
-          () => context.go('/leave')),
+          () => context.push('/leave')),
       _menuItem(context, Icons.account_balance_wallet_rounded, 'Deposits',
-          () => context.go('/deposits')),
+          () => context.push('/deposits')),
       _menuItem(context, Icons.logout_rounded, 'Checkout',
-          () => context.go('/checkout')),
+          () => context.push('/checkout')),
       _menuItem(context, Icons.receipt_long_rounded, 'Expenses & P&L',
-          () => context.go('/expenses')),
+          () => context.push('/expenses')),
       _menuItem(
-          context, Icons.star_rounded, 'Ratings', () => context.go('/ratings')),
+          context, Icons.star_rounded, 'Ratings', () => context.push('/ratings')),
       _menuItem(
-          context, Icons.sos_rounded, 'SOS alerts', () => context.go('/sos')),
+          context, Icons.sos_rounded, 'SOS alerts', () => context.push('/sos')),
       _menuItem(context, Icons.folder_rounded, 'Documents',
-          () => context.go('/documents')),
+          () => context.push('/documents')),
       _menuItem(context, Icons.tune_rounded, 'Property settings',
-          () => context.go('/settings')),
+          () => context.push('/settings')),
       _menuItem(context, Icons.add_business_rounded, 'Add property',
-          () => context.go('/setup')),
+          () => context.push('/setup')),
     ];
   }
 
-  List<Widget> _inmateItems(BuildContext context, User? user) {
+  List<Widget> _inmateItems(BuildContext context, User? user, Property? prop) {
+    bool on(String key) => prop?.featureEnabled(key) ?? true;
     return [
-      _menuItem(context, Icons.chat_bubble_rounded, 'Chat with owner',
-          () => context.go('/chat/${user?.id ?? ''}')),
-      _menuItem(context, Icons.report_problem_rounded, 'Raise a complaint',
-          () => context.go('/complaints/new')),
-      _menuItem(context, Icons.directions_walk_rounded, 'Mark leave',
-          () => context.go('/leave/new')),
-      _menuItem(context, Icons.account_balance_wallet_rounded, 'My deposit',
-          () => context.go('/deposit')),
-      _menuItem(context, Icons.star_rounded, 'Rate my stay', () {
-        final propId = user?.propertyId ?? '';
-        if (user == null || propId.isEmpty) return;
-        showDialog(
-          context: context,
-          builder: (_) => RateStayDialog(propertyId: propId, inmateId: user.id),
-        );
-      }),
-      _menuItem(context, Icons.folder_rounded, 'Documents',
-          () => context.go('/documents')),
+      if (on(PropertyFeatures.chat))
+        _menuItem(context, Icons.chat_bubble_rounded, 'Chat with owner',
+            () => context.push('/chat/${user?.id ?? ''}')),
+      if (on(PropertyFeatures.complaints))
+        _menuItem(context, Icons.report_problem_rounded, 'Raise a complaint',
+            () => context.push('/complaints/new')),
+      if (on(PropertyFeatures.leave))
+        _menuItem(context, Icons.directions_walk_rounded, 'Mark leave',
+            () => context.push('/leave/new')),
+      if (on(PropertyFeatures.deposits))
+        _menuItem(context, Icons.account_balance_wallet_rounded, 'My deposit',
+            () => context.push('/deposit')),
+      if (on(PropertyFeatures.ratings))
+        _menuItem(context, Icons.star_rounded, 'Rate my stay', () {
+          final propId = user?.propertyId ?? '';
+          if (user == null || propId.isEmpty) return;
+          showDialog(
+            context: context,
+            builder: (_) =>
+                RateStayDialog(propertyId: propId, inmateId: user.id),
+          );
+        }),
+      if (on(PropertyFeatures.documents))
+        _menuItem(context, Icons.folder_rounded, 'Documents',
+            () => context.push('/documents')),
     ];
   }
 

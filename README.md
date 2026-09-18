@@ -36,6 +36,9 @@ that turn the app into the single source of truth for the hostel.
 - **Multi-property** — run several hostels from one account; switch property on the
   dashboard.
 - **Document vault** — rental agreements, house rules, KYC documents.
+- **Property types** — hostel / PG / rental house / office space.
+- **Feature toggles** — switch every module on/off; inmates only see what's enabled.
+- **Bed & occupancy** — room capacity and per-bed uniqueness are enforced.
 
 ### Inmate / Resident
 - **Rent** — see amount + due date, pay, view receipts and history.
@@ -246,6 +249,31 @@ store screenshots, data-safety form completion.
 - **Phase 6.5 (done):** multi-property, document vault.
 - **Phase 7 (next):** live Razorpay autopay mandate, scheduled jobs, FCM/APNs push,
   geolocation for SOS, store submission prep.
+
+---
+
+## Pricing & Subscription
+
+HostelHub is **subscription-based** — the owner/operator pays, inmates never do.
+
+| Plan | Price | Includes |
+| --- | --- | --- |
+| Monthly | ₹499 / month | 1 property, unlimited rooms & inmates, all features |
+| Yearly | ₹4,999 / year (~₹416/mo) | 1 property, everything in Monthly, ~17% cheaper |
+| Extra property | +₹199 / month each | each property beyond the first |
+
+Billing & enforcement rules:
+
+- One subscription covers **one owner account** and all their properties.
+- **Non-payment stops the app**: if a monthly subscription lapses or a yearly
+  plan is not renewed, the owner's account is suspended and the app stops
+  working for **all** their properties — both the owner and their inmates lose
+  access until the plan is renewed.
+- Adding an extra property is billed separately (prorated to the renewal date).
+- Inmates never pay — only the hostel owner / operator is billed.
+
+> The numbers above are the **proposed** defaults and are easy to change before
+> launch (see the billing/subscription module in the roadmap).
 
 ---
 

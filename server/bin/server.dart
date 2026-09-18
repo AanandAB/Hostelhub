@@ -152,9 +152,19 @@ Router _router() {
   router.post('/properties', (Request req) async {
     final body = await _body(req);
     final type = body['type'] as String? ?? 'hostel';
-    final features = <String, bool>{};
-    // Mess/polls default ON for hostel & PG, OFF for house/office.
-    features['mess'] = type == 'hostel' || type == 'pg';
+    final features = <String, bool>{
+      'rent': true,
+      // Mess/polls default ON for hostel & PG, OFF for house/office.
+      'mess': type == 'hostel' || type == 'pg',
+      'complaints': true,
+      'notices': true,
+      'leave': true,
+      'deposits': true,
+      'chat': true,
+      'ratings': true,
+      'sos': true,
+      'documents': true,
+    };
     final bodyFeatures = body['features'];
     if (bodyFeatures is Map) {
       bodyFeatures.forEach((k, v) => features[k.toString()] = v == true);

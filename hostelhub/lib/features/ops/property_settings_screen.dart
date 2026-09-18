@@ -8,7 +8,7 @@ import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 
 /// Owner controls which features a property exposes. Inmates only see the
-/// features that are switched on here.
+/// features that are switched on here; the owner always sees their tools.
 class PropertySettingsScreen extends ConsumerWidget {
   const PropertySettingsScreen({super.key});
 
@@ -42,7 +42,6 @@ class PropertySettingsScreen extends ConsumerWidget {
 
   Widget _content(BuildContext context, WidgetRef ref, Property prop) {
     final textTheme = Theme.of(context).textTheme;
-    final messEnabled = prop.featureEnabled('mess');
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
       children: [
@@ -58,54 +57,73 @@ class PropertySettingsScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        GlassCard(
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.16),
-                ),
-                child: const Icon(Icons.restaurant_rounded,
-                    color: AppColors.primary, size: 20),
+        for (final entry in PropertyFeatures.all.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GlassCard(
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withValues(alpha: 0.16),
+                    ),
+                    child: Icon(_iconFor(entry.key),
+                        color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.value, style: textTheme.titleMedium),
+                        Text('Visible to inmates',
+                            style: textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: prop.featureEnabled(entry.key),
+                    onChanged: (v) =>
+                        _toggle(context, ref, prop.id, entry.key, v),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mess & polls', style: textTheme.titleMedium),
-                    Text('Inmates can see food polls and respond',
-                        style: textTheme.bodySmall),
-                  ],
-                ),
-              ),
-              Switch(
-                value: messEnabled,
-                onChanged: (v) => _toggle(context, ref, prop.id, v),
-              ),
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         Text('Only inmates can see the features you turn on.',
             style: textTheme.bodySmall),
       ],
     );
   }
 
-  Future<void> _toggle(
-      BuildContext context, WidgetRef ref, String id, bool value) async {
+  Future<void> _toggle(BuildContext context, WidgetRef ref, String id,
+      String key, bool value) async {
     await ref
         .read(backendProvider)
         .properties
-        .updateProperty(id, features: {'mess': value});
+        .updateProperty(id, features: {key: value});
     ref.invalidate(propertiesProvider);
     ref.invalidate(currentPropertyProvider);
     ref.invalidate(propertyProvider(id));
   }
+
+  IconData _iconFor(String key) => switch (key) {
+        PropertyFeatures.rent => Icons.payments_rounded,
+        PropertyFeatures.mess => Icons.restaurant_rounded,
+        PropertyFeatures.complaints => Icons.report_problem_rounded,
+        PropertyFeatures.notices => Icons.campaign_rounded,
+        PropertyFeatures.leave => Icons.directions_walk_rounded,
+        PropertyFeatures.deposits => Icons.account_balance_wallet_rounded,
+        PropertyFeatures.chat => Icons.chat_bubble_rounded,
+        PropertyFeatures.ratings => Icons.star_rounded,
+        PropertyFeatures.sos => Icons.sos_rounded,
+        PropertyFeatures.documents => Icons.folder_rounded,
+        _ => Icons.toggle_on_rounded,
+      };
 
   String _typeLabel(String t) => switch (t) {
         'pg' => 'PG',
