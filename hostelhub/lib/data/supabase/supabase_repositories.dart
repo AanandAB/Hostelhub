@@ -135,6 +135,11 @@ class SupabaseRentRepository implements RentRepository {
   }
 
   @override
+  Future<List<Payment>> listPropertyPayments(String propertyId) {
+    throw UnimplementedError('Supabase backend not wired');
+  }
+
+  @override
   Future<Payment> payRent({
     required String inmateId,
     required int amount,
@@ -187,6 +192,11 @@ class SupabaseOpsRepository implements OpsRepository {
   Future<List<CheckoutRequest>> listCheckouts(String propertyId) => _n();
   @override
   Future<CheckoutRequest> createCheckout(CheckoutRequest request) => _n();
+
+  @override
+  Future<CheckoutRequest> completeCheckout(String checkoutId,
+          {int refund = 0, int forfeit = 0}) =>
+      _n();
 
   @override
   Future<List<ChatMessage>> listMessages(String inmateId) => _n();

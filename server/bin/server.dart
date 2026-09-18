@@ -32,8 +32,20 @@ final List<Map<String, dynamic>> _expenses = [];
 final List<Map<String, dynamic>> _ratings = [];
 final List<Map<String, dynamic>> _sos = [];
 final List<Map<String, dynamic>> _documents = [];
+final Map<String, Map<String, dynamic>> _subscriptions = {};
 int _seq = 0;
 String _nextId(String prefix) => '$prefix-${++_seq}';
+
+/// Subscription stub: each owner gets a default active monthly plan (1 property).
+Map<String, dynamic> _ensureSubscription(String ownerId) =>
+    _subscriptions.putIfAbsent(
+        ownerId,
+        () => {
+              'plan': 'monthly',
+              'status': 'active',
+              'property_limit': 1,
+              'expires_at': null,
+            });
 
 String _genUsername(String name) {
   final base = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
@@ -116,6 +128,7 @@ Router _router() {
       'password': body['password'], // local-only; real auth is Supabase/Firebase
     };
     _users[user['id'] as String] = user;
+    if (user['role'] == 'owner') _ensureSubscription(user['id'] as String);
     return _json(
         {'token': 'local-token-${user['id']}', 'user': _publicUser(user)}, 201);
   });
@@ -136,6 +149,12 @@ Router _router() {
     if (stored != null && stored != password) {
       return _json({'error': 'invalid credentials'}, 401);
     }
+    if (found['role'] == 'owner') {
+      final sub = _ensureSubscription(found['id'] as String);
+      if (sub['status'] == 'expired') {
+        return _json({'error': 'Subscription expired. Please renew.'}, 403);
+      }
+    }
     return _json(
         {'token': 'local-token-${found['id']}', 'user': _publicUser(found)}, 200);
   });
@@ -151,6 +170,19 @@ Router _router() {
 
   router.post('/properties', (Request req) async {
     final body = await _body(req);
+    // Subscription enforcement: active plan + property-count limit.
+    final ownerId = body['owner_id'] as String;
+    final sub = _ensureSubscription(ownerId);
+    if (sub['status'] == 'expired') {
+      return _json({'error': 'Subscription expired. Please renew.'}, 403);
+    }
+    final limit = sub['property_limit'] as int? ?? 1;
+    final count = _properties.where((p) => p['owner_id'] == ownerId).length;
+    if (count >= limit) {
+      return _json(
+          {'error': 'Property limit reached ($count/$limit). Upgrade to add more.'},
+          403);
+    }
     final type = body['type'] as String? ?? 'hostel';
     final features = <String, bool>{
       'rent': true,
@@ -201,6 +233,29 @@ Router _router() {
       p['features'] = f;
     }
     return _json({'property': p});
+  });
+
+  // ── Subscriptions (stub) ──────────────────────────────────────────────
+  router.get('/subscriptions/<ownerId>', (Request req, String ownerId) {
+    return _json({'subscription': _ensureSubscription(ownerId)});
+  });
+
+  router.post('/subscriptions/<ownerId>/expire', (Request req, String ownerId) {
+    final sub = _ensureSubscription(ownerId);
+    sub['status'] = 'expired';
+    return _json({'subscription': sub});
+  });
+
+  router.post('/subscriptions/<ownerId>/renew', (Request req, String ownerId) {
+    final sub = _ensureSubscription(ownerId);
+    sub['status'] = 'active';
+    return _json({'subscription': sub});
+  });
+
+  router.post('/subscriptions/<ownerId>/upgrade', (Request req, String ownerId) {
+    final sub = _ensureSubscription(ownerId);
+    sub['property_limit'] = (sub['property_limit'] as int? ?? 1) + 1;
+    return _json({'subscription': sub});
   });
 
   // ── Polls ─────────────────────────────────────────────────────────────
@@ -317,6 +372,7 @@ Router _router() {
       'rent_amount': body['rent_amount'] ?? 0,
       'due_day': body['due_day'] ?? 1,
       'join_date': body['join_date'],
+      'checkout_date': null,
       'kyc_verified': false,
     };
     _inmates.add(inmate);
@@ -355,8 +411,11 @@ Router _router() {
   // ── Payments ───────────────────────────────────────────────────────────
   router.get('/payments', (Request req) {
     final inmateId = req.url.queryParameters['inmate_id'];
+    final propertyId = req.url.queryParameters['property_id'];
     final list = _payments
-        .where((p) => inmateId == null || p['inmate_id'] == inmateId)
+        .where((p) =>
+            (inmateId == null || p['inmate_id'] == inmateId) &&
+            (propertyId == null || p['property_id'] == propertyId))
         .toList();
     return _json({'payments': list});
   });
@@ -557,6 +616,33 @@ Router _router() {
     };
     _checkouts.add(request);
     return _json({'checkout': request}, 201);
+  });
+
+  router.post('/checkouts/<id>/complete', (Request req, String id) async {
+    final body = await _body(req);
+    final c = _findById(_checkouts, id);
+    if (c == null) return _json({'error': 'not found'}, 404);
+    c['status'] = 'completed';
+    c['refund'] = body['refund'] ?? 0;
+    c['forfeit'] = body['forfeit'] ?? 0;
+    c['completed_at'] = DateTime.now().toIso8601String().substring(0, 10);
+    // Mark the inmate as checked out (stay-history end date).
+    final inmate =
+        _inmates.where((i) => i['id'] == c['inmate_id']).firstOrNull;
+    if (inmate != null) {
+      inmate['checkout_date'] = c['completed_at'];
+    }
+    // If the owner forfeited part of the deposit (damages), record a deduction.
+    final forfeit = body['forfeit'] as int? ?? 0;
+    if (forfeit > 0) {
+      final d =
+          _deposits.where((x) => x['inmate_id'] == c['inmate_id']).firstOrNull;
+      if (d != null) {
+        (d['deductions'] as List)
+            .add({'reason': 'checkout forfeit', 'amount': forfeit});
+      }
+    }
+    return _json({'checkout': c});
   });
 
   // ── Chat ───────────────────────────────────────────────────────────────

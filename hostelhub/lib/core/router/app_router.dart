@@ -8,7 +8,9 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/splash_screen.dart';
 import '../../features/inmates/add_inmate_screen.dart';
+import '../../features/inmates/inmate_detail_screen.dart';
 import '../../features/onboarding/setup_screen.dart';
+import '../../features/ops/bills_screen.dart';
 import '../../features/ops/chat_screen.dart';
 import '../../features/ops/complaints_screen.dart';
 import '../../features/ops/deposits_checkout_screen.dart';
@@ -35,7 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loggedIn = auth.user != null;
       final onAuth = loc == '/login' || loc == '/register';
       final ownerOnly = loc == '/setup' ||
-          loc == '/inmates/new' ||
+          loc.startsWith('/inmates/') ||
           loc == '/complaints' ||
           loc == '/visitors' ||
           loc == '/leave' ||
@@ -45,7 +47,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/expenses' ||
           loc == '/ratings' ||
           loc == '/sos' ||
-          loc == '/settings';
+          loc == '/settings' ||
+          loc == '/bills';
       final inmateOnly = loc == '/complaints/new' ||
           loc == '/leave/new' ||
           loc == '/deposit';
@@ -67,6 +70,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home', builder: (_, _) => const AppShell()),
       GoRoute(path: '/setup', builder: (_, _) => const SetupScreen()),
       GoRoute(path: '/inmates/new', builder: (_, _) => const AddInmateScreen()),
+      GoRoute(
+          path: '/inmates/:inmateId',
+          builder: (_, state) =>
+              InmateDetailScreen(inmateId: state.pathParameters['inmateId']!)),
       GoRoute(path: '/complaints', builder: (_, _) => const ComplaintsScreen()),
       GoRoute(
           path: '/complaints/new',
@@ -89,6 +96,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/settings',
           builder: (_, _) => const PropertySettingsScreen()),
+      GoRoute(path: '/bills', builder: (_, _) => const BillsScreen()),
     ],
   );
 });

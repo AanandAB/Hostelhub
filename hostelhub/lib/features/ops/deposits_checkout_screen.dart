@@ -228,25 +228,44 @@ class CheckoutScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: GlassCard(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.inmateName, style: textTheme.titleMedium),
-                          Text('Vacating ${c.vacateDate}',
-                              style: textTheme.bodySmall),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(c.inmateName, style: textTheme.titleMedium),
+                              Text('Vacating ${c.vacateDate}',
+                                  style: textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
+                        Text(c.status,
+                            style: TextStyle(
+                                color: c.status == 'completed'
+                                    ? AppColors.accent
+                                    : AppColors.warning,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12)),
+                      ],
                     ),
-                    Text(c.status,
-                        style: TextStyle(
-                            color: c.status == 'completed'
-                                ? AppColors.accent
-                                : AppColors.warning,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12)),
+                    if (c.status == 'requested') ...[
+                      const SizedBox(height: 6),
+                      TextButton(
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (_) => _CompleteCheckoutDialog(
+                            propertyId: propertyId,
+                            checkout: c,
+                          ),
+                        ),
+                        child:
+                            const Text('Complete checkout & settle deposit'),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -474,6 +493,96 @@ class _InitiateCheckoutDialogState
                 icon: Icons.event_rounded),
             const SizedBox(height: 16),
             GlassButton(label: 'Initiate', loading: _busy, onPressed: _save),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompleteCheckoutDialog extends ConsumerStatefulWidget {
+  final String propertyId;
+  final CheckoutRequest checkout;
+  const _CompleteCheckoutDialog(
+      {required this.propertyId, required this.checkout});
+
+  @override
+  ConsumerState<_CompleteCheckoutDialog> createState() =>
+      _CompleteCheckoutDialogState();
+}
+
+class _CompleteCheckoutDialogState
+    extends ConsumerState<_CompleteCheckoutDialog> {
+  final _refund = TextEditingController(text: '0');
+  final _forfeit = TextEditingController(text: '0');
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _refund.dispose();
+    _forfeit.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final refund = int.tryParse(_refund.text.trim()) ?? 0;
+    final forfeit = int.tryParse(_forfeit.text.trim()) ?? 0;
+    setState(() => _busy = true);
+    try {
+      await ref.read(backendProvider).ops.completeCheckout(
+            widget.checkout.id,
+            refund: refund,
+            forfeit: forfeit,
+          );
+      ref.invalidate(checkoutsProvider(widget.propertyId));
+      ref.invalidate(inmatesProvider(widget.propertyId));
+      ref.invalidate(depositsProvider(widget.propertyId));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not complete: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final deposit =
+        ref.watch(inmateDepositProvider(widget.checkout.inmateId)).value;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: GlassCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Complete checkout', style: textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+                '${widget.checkout.inmateName} · vacating ${widget.checkout.vacateDate}',
+                style: textTheme.bodyMedium),
+            if (deposit != null) ...[
+              const SizedBox(height: 8),
+              Text('Refundable deposit: ₹${deposit.refundable}',
+                  style: textTheme.bodyMedium),
+            ],
+            const SizedBox(height: 12),
+            GlassTextField(
+                controller: _refund,
+                label: 'Refund amount (₹)',
+                icon: Icons.currency_rupee,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 12),
+            GlassTextField(
+                controller: _forfeit,
+                label: 'Forfeit for damages (₹)',
+                icon: Icons.report_rounded,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            GlassButton(label: 'Complete', loading: _busy, onPressed: _save),
           ],
         ),
       ),

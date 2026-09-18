@@ -70,6 +70,7 @@ abstract class InmateRepository {
 abstract class RentRepository {
   Future<RentPlan?> getRentPlan(String inmateId);
   Future<List<Payment>> listPayments(String inmateId);
+  Future<List<Payment>> listPropertyPayments(String propertyId);
   Future<Payment> payRent({
     required String inmateId,
     required int amount,
@@ -118,6 +119,8 @@ abstract class OpsRepository {
   // ── Checkout ────────────────────────────────────────────────────────────
   Future<List<CheckoutRequest>> listCheckouts(String propertyId);
   Future<CheckoutRequest> createCheckout(CheckoutRequest request);
+  Future<CheckoutRequest> completeCheckout(String checkoutId,
+      {int refund = 0, int forfeit = 0});
 
   // ── Chat ───────────────────────────────────────────────────────────────
   Future<List<ChatMessage>> listMessages(String inmateId);

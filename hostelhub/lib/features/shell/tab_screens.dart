@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
+import '../../data/models/complaint.dart';
 import '../../data/models/payment.dart';
 import '../../data/models/poll.dart';
 import '../../data/models/property.dart';
@@ -17,6 +18,7 @@ import '../../presentation/widgets/glass.dart';
 import '../auth/auth_controller.dart';
 import '../onboarding/hostel_providers.dart';
 import '../ops/notices_screen.dart';
+import '../ops/ops_providers.dart';
 import '../ops/ratings_screen.dart';
 import '../polls/poll_providers.dart';
 import '../polls/polls_screen.dart';
@@ -60,6 +62,24 @@ class HomeScreen extends ConsumerWidget {
             final occupancyPct = totalBeds == 0
                 ? 0
                 : ((inmates.length / totalBeds) * 100).round();
+            final payments = ref.watch(propertyPaymentsProvider(prop.id)).value ??
+                const <Payment>[];
+            final complaints = ref.watch(complaintsProvider(prop.id)).value ??
+                const <Complaint>[];
+            final now = DateTime.now();
+            final todaysCollection = payments
+                .where((p) =>
+                    p.paidDate != null &&
+                    p.paidDate!.year == now.year &&
+                    p.paidDate!.month == now.month &&
+                    p.paidDate!.day == now.day)
+                .fold<int>(0, (s, p) => s + p.amount);
+            final pendingDues = inmates
+                .where((i) => !paidThisMonth(
+                    payments.where((p) => p.inmateId == i.id).toList()))
+                .length;
+            final openComplaints =
+                complaints.where((c) => c.status == 'open').length;
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final primary = isDark ? AppColors.primaryDark : AppColors.primary;
 
@@ -111,8 +131,30 @@ class HomeScreen extends ConsumerWidget {
                       child: _StatCard(
                         icon: Icons.report_problem_rounded,
                         label: 'Open complaints',
-                        value: '—',
+                        value: '$openComplaints',
                         accent: AppColors.danger,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.currency_rupee,
+                        label: "Today's collection",
+                        value: '₹$todaysCollection',
+                        accent: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.pending_actions_rounded,
+                        label: 'Pending dues',
+                        value: '$pendingDues',
+                        accent: AppColors.warning,
                       ),
                     ),
                   ],
@@ -524,6 +566,8 @@ class MoreScreen extends ConsumerWidget {
           () => context.push('/checkout')),
       _menuItem(context, Icons.receipt_long_rounded, 'Expenses & P&L',
           () => context.push('/expenses')),
+      _menuItem(context, Icons.picture_as_pdf_rounded, 'Bills & invoices',
+          () => context.push('/bills')),
       _menuItem(
           context, Icons.star_rounded, 'Ratings', () => context.push('/ratings')),
       _menuItem(

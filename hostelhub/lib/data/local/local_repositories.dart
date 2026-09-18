@@ -207,6 +207,14 @@ class LocalRentRepository implements RentRepository {
   }
 
   @override
+  Future<List<Payment>> listPropertyPayments(String propertyId) async {
+    final json = await api.get('/payments?property_id=$propertyId');
+    return (json['payments'] as List<dynamic>? ?? const [])
+        .map((e) => Payment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
   Future<Payment> payRent({
     required String inmateId,
     required int amount,
@@ -359,6 +367,14 @@ class LocalOpsRepository implements OpsRepository {
   @override
   Future<CheckoutRequest> createCheckout(CheckoutRequest request) async {
     final json = await api.post('/checkouts', request.toJson());
+    return CheckoutRequest.fromJson(json['checkout'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<CheckoutRequest> completeCheckout(String checkoutId,
+      {int refund = 0, int forfeit = 0}) async {
+    final json = await api.post(
+        '/checkouts/$checkoutId/complete', {'refund': refund, 'forfeit': forfeit});
     return CheckoutRequest.fromJson(json['checkout'] as Map<String, dynamic>);
   }
 

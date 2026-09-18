@@ -258,8 +258,8 @@ HostelHub is **subscription-based** — the owner/operator pays, inmates never d
 
 | Plan | Price | Includes |
 | --- | --- | --- |
-| Monthly | ₹499 / month | 1 property, unlimited rooms & inmates, all features |
-| Yearly | ₹4,999 / year (~₹416/mo) | 1 property, everything in Monthly, ~17% cheaper |
+| Monthly | ₹899 / month | 1 property, unlimited rooms & inmates, all features |
+| Yearly | ₹8,999 / year (~₹750/mo) | 1 property, everything in Monthly, ~17% cheaper |
 | Extra property | +₹199 / month each | each property beyond the first |
 
 Billing & enforcement rules:

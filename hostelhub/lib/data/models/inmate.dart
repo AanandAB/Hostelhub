@@ -12,6 +12,7 @@ class Inmate {
   final int rentAmount; // ₹ per month
   final int dueDay; // day of month rent is due (1-31)
   final String? joinDate;
+  final String? checkoutDate; // set once the inmate checks out (stay history)
 
   const Inmate({
     required this.id,
@@ -25,6 +26,7 @@ class Inmate {
     this.rentAmount = 0,
     this.dueDay = 1,
     this.joinDate,
+    this.checkoutDate,
   });
 
   factory Inmate.fromJson(Map<String, dynamic> json) => Inmate(
@@ -39,6 +41,7 @@ class Inmate {
         rentAmount: json['rent_amount'] as int? ?? 0,
         dueDay: json['due_day'] as int? ?? 1,
         joinDate: json['join_date'] as String?,
+        checkoutDate: json['checkout_date'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -53,5 +56,6 @@ class Inmate {
         'rent_amount': rentAmount,
         'due_day': dueDay,
         'join_date': joinDate,
+        'checkout_date': checkoutDate,
       };
 }

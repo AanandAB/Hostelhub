@@ -10,6 +10,11 @@ final rentPlanProvider = FutureProvider.family<RentPlan?, String>(
 final paymentsProvider = FutureProvider.family<List<Payment>, String>(
     (ref, inmateId) => ref.watch(backendProvider).rent.listPayments(inmateId));
 
+/// All payments for a property (owner dashboard / bills).
+final propertyPaymentsProvider =
+    FutureProvider.family<List<Payment>, String>((ref, propertyId) =>
+        ref.watch(backendProvider).rent.listPropertyPayments(propertyId));
+
 /// Days until the next occurrence of `dueDay` (negative = overdue).
 int daysUntilDue(int dueDay, {DateTime? now}) {
   final n = now ?? DateTime.now();

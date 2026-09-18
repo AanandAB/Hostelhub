@@ -204,6 +204,7 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                       GlassCard(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
+                        onTap: () => context.push('/inmates/${i.id}'),
                         child: Row(
                           children: [
                             Container(
