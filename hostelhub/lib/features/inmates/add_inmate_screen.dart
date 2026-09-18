@@ -42,7 +42,8 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
       _snack('Enter a name and pick a room');
       return;
     }
-    // Capacity enforcement: a room can hold at most `capacity` inmates.
+    final bed = int.tryParse(_bedNo.text.trim()) ?? 1;
+    // Capacity + bed-uniqueness enforcement.
     final rooms = ref.read(roomsProvider(propertyId)).value ?? const <Room>[];
     final inmates =
         ref.read(inmatesProvider(propertyId)).value ?? const <Inmate>[];
@@ -59,9 +60,18 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
         _snack('Room ${room.roomNo} is full ($count/${room.capacity})');
         return;
       }
+      if (bed < 1 || bed > room.capacity) {
+        _snack('Bed $bed is out of range (1-${room.capacity})');
+        return;
+      }
+      final bedTaken =
+          inmates.any((i) => i.roomId == _roomId && i.bedNo == bed);
+      if (bedTaken) {
+        _snack('Bed $bed in room ${room.roomNo} is already taken');
+        return;
+      }
     }
     final rent = int.tryParse(_rent.text.trim()) ?? 0;
-    final bed = int.tryParse(_bedNo.text.trim()) ?? 1;
     final due = int.tryParse(_dueDay.text.trim()) ?? 1;
     setState(() => _busy = true);
     try {

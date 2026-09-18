@@ -55,6 +55,17 @@ class SupabasePropertyRepository implements PropertyRepository {
   Future<Property> createProperty(Property property) {
     throw UnimplementedError('Supabase backend not wired');
   }
+
+  @override
+  Future<Property> getProperty(String id) {
+    throw UnimplementedError('Supabase backend not wired');
+  }
+
+  @override
+  Future<Property> updateProperty(String id,
+      {String? type, Map<String, bool>? features}) {
+    throw UnimplementedError('Supabase backend not wired');
+  }
 }
 
 class SupabasePollRepository implements PollRepository {

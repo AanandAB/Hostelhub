@@ -40,6 +40,10 @@ final currentPropertyProvider = FutureProvider<Property?>((ref) async {
   return props.first;
 });
 
+/// A single property by id (used by inmates to read feature toggles).
+final propertyProvider = FutureProvider.family<Property?, String>(
+    (ref, id) => ref.watch(backendProvider).properties.getProperty(id));
+
 /// Rooms for a property, keyed by propertyId.
 final roomsProvider = FutureProvider.family<List<Room>, String>(
     (ref, propertyId) => ref.watch(backendProvider).rooms.listRooms(propertyId));

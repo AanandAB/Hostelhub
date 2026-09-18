@@ -35,6 +35,16 @@ class LocalApiClient {
     return _decode(res);
   }
 
+  Future<Map<String, dynamic>> patch(String path,
+      [Map<String, dynamic>? body]) async {
+    final res = await _client.patch(
+      _uri(path),
+      headers: {'Content-Type': 'application/json'},
+      body: body == null ? null : jsonEncode(body),
+    );
+    return _decode(res);
+  }
+
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   Map<String, dynamic> _decode(http.Response res) {

@@ -74,6 +74,22 @@ class LocalPropertyRepository implements PropertyRepository {
     final json = await api.post('/properties', property.toJson());
     return Property.fromJson(json['property'] as Map<String, dynamic>);
   }
+
+  @override
+  Future<Property> getProperty(String id) async {
+    final json = await api.get('/properties/$id');
+    return Property.fromJson(json['property'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Property> updateProperty(String id,
+      {String? type, Map<String, bool>? features}) async {
+    final json = await api.patch('/properties/$id', {
+      'type': ?type,
+      'features': ?features,
+    });
+    return Property.fromJson(json['property'] as Map<String, dynamic>);
+  }
 }
 
 class LocalPollRepository implements PollRepository {

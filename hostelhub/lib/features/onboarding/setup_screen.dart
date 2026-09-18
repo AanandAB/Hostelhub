@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/property.dart';
 import '../../data/models/room.dart';
 import '../../presentation/widgets/glass.dart';
 import '../auth/auth_controller.dart';
 import 'hostel_providers.dart';
+
+/// Property types the owner can onboard. Mess/polls is relevant to hostels/PGs.
+const _propertyTypes = <(String, String)>[
+  ('hostel', 'Hostel'),
+  ('pg', 'PG'),
+  ('house', 'House (rent)'),
+  ('office', 'Office space'),
+];
 
 /// Owner onboarding wizard: step 1 hostel details, step 2 rooms.
 class SetupScreen extends ConsumerStatefulWidget {
@@ -20,6 +29,7 @@ class SetupScreen extends ConsumerStatefulWidget {
 class _SetupScreenState extends ConsumerState<SetupScreen> {
   int _step = 0;
   String? _propertyId;
+  String _type = 'hostel';
   bool _busy = false;
 
   final _name = TextEditingController();
@@ -55,6 +65,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               ownerId: user.id,
               name: _name.text.trim(),
               address: _address.text.trim(),
+              type: _type,
             ),
           );
       _propertyId = prop.id;
@@ -105,6 +116,29 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   void _snack(String m) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
 
+  Widget _typeChip(String value, String label, bool selected) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? AppColors.primaryDark : AppColors.primary;
+    final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    return GestureDetector(
+      onTap: () => setState(() => _type = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? primary
+              : (isDark ? AppColors.glassDark : AppColors.glassLight),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : muted)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -139,13 +173,24 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           const SizedBox(height: 28),
           GlassTextField(
               controller: _name,
-              label: 'Hostel name',
+              label: 'Property name',
               icon: Icons.apartment_rounded),
           const SizedBox(height: 14),
           GlassTextField(
               controller: _address,
               label: 'Address (optional)',
               icon: Icons.location_on_outlined),
+          const SizedBox(height: 20),
+          Text('Property type', style: textTheme.titleMedium),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final t in _propertyTypes)
+                _typeChip(t.$1, t.$2, _type == t.$1),
+            ],
+          ),
           const SizedBox(height: 40),
           GlassButton(label: 'Next', loading: _busy, onPressed: _next),
           const SizedBox(height: 16),

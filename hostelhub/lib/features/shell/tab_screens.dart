@@ -230,6 +230,10 @@ class HomeScreen extends ConsumerWidget {
     final propertyId = user?.propertyId ?? '';
     final polls = ref.watch(pollsProvider(propertyId)).value ?? const <Poll>[];
     final latestPoll = polls.isEmpty ? null : polls.last;
+    final property = propertyId.isEmpty
+        ? null
+        : ref.watch(propertyProvider(propertyId)).value;
+    final messEnabled = property?.featureEnabled('mess') ?? true;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
@@ -283,7 +287,7 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
         ),
-        if (latestPoll != null) ...[
+        if (messEnabled && latestPoll != null) ...[
           const SizedBox(height: 14),
           InmatePollCard(poll: latestPoll, inmateId: inmateId),
         ],
@@ -515,6 +519,8 @@ class MoreScreen extends ConsumerWidget {
           context, Icons.sos_rounded, 'SOS alerts', () => context.go('/sos')),
       _menuItem(context, Icons.folder_rounded, 'Documents',
           () => context.go('/documents')),
+      _menuItem(context, Icons.tune_rounded, 'Property settings',
+          () => context.go('/settings')),
       _menuItem(context, Icons.add_business_rounded, 'Add property',
           () => context.go('/setup')),
     ];

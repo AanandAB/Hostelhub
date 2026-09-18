@@ -5,6 +5,7 @@ import '../../data/models/user.dart';
 import '../../presentation/widgets/glass_bottom_nav.dart';
 import '../auth/auth_controller.dart';
 import '../inmates/inmates_screen.dart';
+import '../onboarding/hostel_providers.dart';
 import '../ops/notices_screen.dart';
 import '../polls/polls_screen.dart';
 import '../rent/payments_screen.dart';
@@ -23,13 +24,14 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
-  List<_Tab> _tabsFor(UserRole role) {
+  List<_Tab> _tabsFor(UserRole role, bool messEnabled) {
     if (role == UserRole.owner) {
-      return const [
-        _Tab(Icons.dashboard_rounded, 'Home', HomeScreen()),
-        _Tab(Icons.people_alt_rounded, 'Inmates', InmatesScreen()),
-        _Tab(Icons.restaurant_rounded, 'Polls', PollsScreen()),
-        _Tab(Icons.more_horiz_rounded, 'More', MoreScreen()),
+      return [
+        _Tab(Icons.dashboard_rounded, 'Home', const HomeScreen()),
+        _Tab(Icons.people_alt_rounded, 'Inmates', const InmatesScreen()),
+        if (messEnabled)
+          _Tab(Icons.restaurant_rounded, 'Polls', const PollsScreen()),
+        _Tab(Icons.more_horiz_rounded, 'More', const MoreScreen()),
       ];
     }
     return const [
@@ -44,7 +46,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final role =
         ref.watch(authControllerProvider).user?.role ?? UserRole.inmate;
-    final tabs = _tabsFor(role);
+    final prop = ref.watch(currentPropertyProvider).value;
+    final messEnabled = prop?.featureEnabled('mess') ?? true;
+    final tabs = _tabsFor(role, messEnabled);
 
     // Android back button: on a non-home tab, return to Home instead of
     // exiting the app; on Home, let the system back behave normally.

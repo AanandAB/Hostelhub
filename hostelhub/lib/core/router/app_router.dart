@@ -14,6 +14,7 @@ import '../../features/ops/complaints_screen.dart';
 import '../../features/ops/deposits_checkout_screen.dart';
 import '../../features/ops/documents_screen.dart';
 import '../../features/ops/expenses_screen.dart';
+import '../../features/ops/property_settings_screen.dart';
 import '../../features/ops/ratings_screen.dart';
 import '../../features/ops/sos_screen.dart';
 import '../../features/ops/visitors_leave_screen.dart';
@@ -43,7 +44,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/chat' ||
           loc == '/expenses' ||
           loc == '/ratings' ||
-          loc == '/sos';
+          loc == '/sos' ||
+          loc == '/settings';
       final inmateOnly = loc == '/complaints/new' ||
           loc == '/leave/new' ||
           loc == '/deposit';
@@ -84,6 +86,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/ratings', builder: (_, _) => const RatingsScreen()),
       GoRoute(path: '/sos', builder: (_, _) => const SosScreen()),
       GoRoute(path: '/documents', builder: (_, _) => const DocumentsScreen()),
+      GoRoute(
+          path: '/settings',
+          builder: (_, _) => const PropertySettingsScreen()),
     ],
   );
 });

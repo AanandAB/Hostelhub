@@ -56,6 +56,17 @@ class FirebasePropertyRepository implements PropertyRepository {
   Future<Property> createProperty(Property property) {
     throw UnimplementedError('Firebase backend not wired');
   }
+
+  @override
+  Future<Property> getProperty(String id) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
+  Future<Property> updateProperty(String id,
+      {String? type, Map<String, bool>? features}) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
 }
 
 class FirebasePollRepository implements PollRepository {

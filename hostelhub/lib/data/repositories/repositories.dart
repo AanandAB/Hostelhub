@@ -30,7 +30,10 @@ abstract class AuthRepository {
 /// Property / hostel profile management (multi-property ready).
 abstract class PropertyRepository {
   Future<List<Property>> listProperties(String ownerId);
+  Future<Property> getProperty(String id);
   Future<Property> createProperty(Property property);
+  Future<Property> updateProperty(String id,
+      {String? type, Map<String, bool>? features});
 }
 
 /// Rooms within a property.
