@@ -148,6 +148,37 @@ flutter build apk --release
 
 ---
 
+### 4. Test on a phone (same Wi-Fi)
+
+When the app runs on a **physical phone**, `127.0.0.1` means the phone itself — it
+will **not** reach your PC. Point the app at your PC's LAN address instead.
+
+1. **Find your PC's LAN IP** (Windows):
+   ```bash
+   ipconfig
+   # look for "IPv4 Address" under your Wi-Fi adapter, e.g. 192.168.1.8
+   ```
+2. **Start the server** (step 1 above) — it binds to all interfaces, so the phone
+   can reach it.
+3. **Build the APK with that IP baked in**:
+   ```bash
+   cd hostelhub
+   flutter build apk --release \
+     --dart-define=BACKEND=local \
+     --dart-define=LOCAL_BASE_URL=http://<YOUR-PC-IP>:8081
+   # output: build/app/outputs/flutter-apk/app-release.apk
+   ```
+4. **Install the APK on the phone** (USB / Drive / WhatsApp, then allow
+   "install from unknown sources").
+
+The phone and the PC must be on the **same Wi-Fi network**. The IP is baked in at
+build time — if the PC's IP changes, rebuild with the new address.
+
+The IP, port and backend default live in `lib/core/config/app_config.dart`; the
+`--dart-define` flags above override those defaults.
+
+---
+
 ## Configuration
 
 All environment-specific values are injected at build/run time via `--dart-define`
