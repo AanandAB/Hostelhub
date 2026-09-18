@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required so the app can reach the backend (Flutter only adds this to
+         debug/profile manifests, so release builds need it explicitly). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="hostelhub"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
