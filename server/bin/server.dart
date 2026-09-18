@@ -242,6 +242,14 @@ Router _router() {
     final roomId = body['room_id'] as String;
     final room = _rooms.firstWhere((r) => r['id'] == roomId,
         orElse: () => {'room_no': '?'});
+    // Capacity enforcement: a room can hold at most `capacity` inmates.
+    final capacity = room['capacity'] as int? ?? 1;
+    final occupied = _inmates.where((i) => i['room_id'] == roomId).length;
+    if (occupied >= capacity) {
+      return _json(
+          {'error': 'Room ${room['room_no']} is full ($occupied/$capacity)'},
+          409);
+    }
     final id = _nextId('user');
     final username = _genUsername(name);
     final password = _genPassword();

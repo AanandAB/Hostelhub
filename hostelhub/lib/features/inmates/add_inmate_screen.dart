@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
+import '../../data/models/inmate.dart';
+import '../../data/models/room.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 
@@ -39,6 +41,24 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
     if (_name.text.trim().isEmpty || _roomId == null) {
       _snack('Enter a name and pick a room');
       return;
+    }
+    // Capacity enforcement: a room can hold at most `capacity` inmates.
+    final rooms = ref.read(roomsProvider(propertyId)).value ?? const <Room>[];
+    final inmates =
+        ref.read(inmatesProvider(propertyId)).value ?? const <Inmate>[];
+    Room? room;
+    for (final r in rooms) {
+      if (r.id == _roomId) {
+        room = r;
+        break;
+      }
+    }
+    if (room != null) {
+      final count = inmates.where((i) => i.roomId == _roomId).length;
+      if (count >= room.capacity) {
+        _snack('Room ${room.roomNo} is full ($count/${room.capacity})');
+        return;
+      }
     }
     final rent = int.tryParse(_rent.text.trim()) ?? 0;
     final bed = int.tryParse(_bedNo.text.trim()) ?? 1;
@@ -175,6 +195,8 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
 
   Widget _form(String propertyId, TextTheme textTheme) {
     final roomsAsync = ref.watch(roomsProvider(propertyId));
+    final inmates =
+        ref.watch(inmatesProvider(propertyId)).value ?? const <Inmate>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -200,9 +222,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final r in rooms)
-                        _roomChip(r.id, 'Room ${r.roomNo} (${r.capacity})',
-                            r.id == _roomId),
+                      for (final r in rooms) _buildRoomChip(r, inmates),
                     ],
                   ),
             loading: () => const SizedBox(
@@ -247,20 +267,32 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
     );
   }
 
-  Widget _roomChip(String id, String label, bool selected) {
+  Widget _buildRoomChip(Room r, List<Inmate> inmates) {
+    final count = inmates.where((i) => i.roomId == r.id).length;
+    final full = count >= r.capacity;
+    return _roomChip(r.id, 'Room ${r.roomNo} ($count/${r.capacity})',
+        r.id == _roomId, full: full);
+  }
+
+  Widget _roomChip(String id, String label, bool selected,
+      {bool full = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? AppColors.primaryDark : AppColors.primary;
+    final danger = isDark ? AppColors.dangerDark : AppColors.danger;
     final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    final textColor = full ? danger : (selected ? primary : muted);
     return GestureDetector(
-      onTap: () => setState(() => _roomId = id),
+      onTap: full ? null : () => setState(() => _roomId = id),
       child: GlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        tint: selected ? primary.withValues(alpha: 0.18) : null,
+        tint: full
+            ? danger.withValues(alpha: 0.12)
+            : (selected ? primary.withValues(alpha: 0.18) : null),
         child: Text(label,
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: selected ? primary : muted)),
+                color: textColor)),
       ),
     );
   }

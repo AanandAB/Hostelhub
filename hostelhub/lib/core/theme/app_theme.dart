@@ -32,7 +32,8 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor:
+          isDark ? AppColors.baseDarkA : AppColors.baseLightA,
       // iOS falls back to Flutter's native Cupertino swipe-back by default.
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

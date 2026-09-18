@@ -46,16 +46,25 @@ class _AppShellState extends ConsumerState<AppShell> {
         ref.watch(authControllerProvider).user?.role ?? UserRole.inmate;
     final tabs = _tabsFor(role);
 
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _index,
-        children: [for (final t in tabs) t.screen],
-      ),
-      bottomNavigationBar: GlassBottomNav(
-        items: [for (final t in tabs) NavItem(icon: t.icon, label: t.label)],
-        currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
+    // Android back button: on a non-home tab, return to Home instead of
+    // exiting the app; on Home, let the system back behave normally.
+    return PopScope(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        setState(() => _index = 0);
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: IndexedStack(
+          index: _index,
+          children: [for (final t in tabs) t.screen],
+        ),
+        bottomNavigationBar: GlassBottomNav(
+          items: [for (final t in tabs) NavItem(icon: t.icon, label: t.label)],
+          currentIndex: _index,
+          onTap: (i) => setState(() => _index = i),
+        ),
       ),
     );
   }
