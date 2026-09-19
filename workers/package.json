@@ -11,8 +11,8 @@
     "db:migrate:remote": "wrangler d1 execute hostelhub --remote --file=./schema.sql"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260901.0",
+    "@cloudflare/workers-types": "^5.20260919.1",
     "typescript": "^5.6.0",
-    "wrangler": "^3.90.0"
+    "wrangler": "^4.135.0"
   }
 }

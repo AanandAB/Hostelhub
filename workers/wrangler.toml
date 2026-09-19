@@ -20,7 +20,7 @@ compatibility_date = "2026-09-19"
 [[d1_databases]]
 binding = "DB"        # available as `env.DB` inside the Worker
 database_name = "hostelhub"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "0f9dca74-094d-410f-b82e-52ab33a28f2b"
 
 # Secrets (set with `npx wrangler secret put`):
 #   JWT_SECRET  — signing key for auth tokens
