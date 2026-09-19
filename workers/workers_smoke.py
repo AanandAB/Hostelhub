@@ -2,7 +2,7 @@ import json
 import urllib.request
 import urllib.error
 
-BASE = "https://hostelhub.theblacklightstudio.workers.dev"
+BASE = "https://YOUR-WORKER.workers.dev"  # set to your deployed Worker URL
 results = []
 
 
