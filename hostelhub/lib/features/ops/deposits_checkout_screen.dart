@@ -516,6 +516,7 @@ class _CompleteCheckoutDialogState
   final _refund = TextEditingController(text: '0');
   final _forfeit = TextEditingController(text: '0');
   bool _busy = false;
+  bool _seeded = false;
 
   @override
   void dispose() {
@@ -552,39 +553,96 @@ class _CompleteCheckoutDialogState
     final textTheme = Theme.of(context).textTheme;
     final deposit =
         ref.watch(inmateDepositProvider(widget.checkout.inmateId)).value;
+    // Auto-fill the refund with the deposit's refundable balance once loaded,
+    // so the owner settles against the inmate's actual deposit + deductions.
+    if (!_seeded && deposit != null) {
+      _seeded = true;
+      _refund.text = '${deposit.refundable}';
+    }
     return Dialog(
       backgroundColor: Colors.transparent,
       child: GlassCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Complete checkout', style: textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-                '${widget.checkout.inmateName} · vacating ${widget.checkout.vacateDate}',
-                style: textTheme.bodyMedium),
-            if (deposit != null) ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Complete checkout', style: textTheme.titleLarge),
               const SizedBox(height: 8),
-              Text('Refundable deposit: ₹${deposit.refundable}',
+              Text(
+                  '${widget.checkout.inmateName} · vacating ${widget.checkout.vacateDate}',
                   style: textTheme.bodyMedium),
+              if (deposit != null) ...[
+                const SizedBox(height: 12),
+                _depositSummary(context, deposit, textTheme),
+              ],
+              const SizedBox(height: 12),
+              GlassTextField(
+                  controller: _refund,
+                  label: 'Refund amount (₹)',
+                  icon: Icons.currency_rupee,
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              GlassTextField(
+                  controller: _forfeit,
+                  label: 'Additional forfeit for damages (₹)',
+                  icon: Icons.report_rounded,
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 16),
+              GlassButton(label: 'Complete', loading: _busy, onPressed: _save),
             ],
-            const SizedBox(height: 12),
-            GlassTextField(
-                controller: _refund,
-                label: 'Refund amount (₹)',
-                icon: Icons.currency_rupee,
-                keyboardType: TextInputType.number),
-            const SizedBox(height: 12),
-            GlassTextField(
-                controller: _forfeit,
-                label: 'Forfeit for damages (₹)',
-                icon: Icons.report_rounded,
-                keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            GlassButton(label: 'Complete', loading: _busy, onPressed: _save),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// Itemised deposit breakdown (collected − deductions = refundable), so the
+  /// owner sees exactly what's being settled at checkout.
+  Widget _depositSummary(
+      BuildContext context, Deposit d, TextTheme textTheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppColors.glassDark : AppColors.glassLight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Deposit summary', style: textTheme.titleMedium),
+          const SizedBox(height: 6),
+          _sumRow(context, 'Collected', '₹${d.amountCollected}'),
+          for (final ded in d.deductions)
+            _sumRow(context,
+                '− ${ded['reason'] ?? 'Deduction'}', '₹${ded['amount'] ?? 0}'),
+          const Divider(height: 16),
+          _sumRow(context, 'Refundable', '₹${d.refundable}',
+              highlight: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _sumRow(BuildContext context, String label, String value,
+      {bool highlight = false}) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: textTheme.bodySmall),
+          Text(value,
+              style: highlight
+                  ? textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700, color: AppColors.accent)
+                  : textTheme.bodyLarge?.copyWith(color: muted)),
+        ],
       ),
     );
   }
