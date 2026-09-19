@@ -5,6 +5,7 @@ class Inmate {
   final String propertyId;
   final String name;
   final String phone;
+  final String email;
   final String username;
   final String roomId;
   final String roomNo;
@@ -19,6 +20,7 @@ class Inmate {
     required this.propertyId,
     required this.name,
     this.phone = '',
+    this.email = '',
     this.username = '',
     this.roomId = '',
     this.roomNo = '',
@@ -34,6 +36,7 @@ class Inmate {
         propertyId: json['property_id'] as String,
         name: json['name'] as String,
         phone: json['phone'] as String? ?? '',
+        email: json['email'] as String? ?? '',
         username: json['username'] as String? ?? '',
         roomId: json['room_id'] as String? ?? '',
         roomNo: json['room_no'] as String? ?? '',
@@ -49,6 +52,7 @@ class Inmate {
         'property_id': propertyId,
         'name': name,
         'phone': phone,
+        'email': email,
         'username': username,
         'room_id': roomId,
         'room_no': roomNo,

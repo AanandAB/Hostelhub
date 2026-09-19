@@ -41,6 +41,16 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> forgotPassword(String email) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
+  Future<void> resetPassword(String token, String password) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
   Future<User?> currentUser() async => null;
 
   @override
@@ -115,12 +125,29 @@ class FirebaseInmateRepository implements InmateRepository {
     required String propertyId,
     required String name,
     required String phone,
+    required String email,
     required String roomId,
     required int bedNo,
     required int rentAmount,
     required int dueDay,
     required String joinDate,
   }) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
+  Future<Inmate> changeRoom(String inmateId,
+      {required String roomId, required int bedNo}) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
+  Future<Map<String, dynamic>> getInvoice(String inmateId, {String? month}) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
+
+  @override
+  Future<Map<String, dynamic>> emailInvoice(String inmateId, {String? month}) {
     throw UnimplementedError('Firebase backend not wired');
   }
 }

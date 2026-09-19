@@ -47,6 +47,17 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> forgotPassword(String email) async {
+    await api.post('/auth/forgot-password', {'email': email});
+  }
+
+  @override
+  Future<void> resetPassword(String token, String password) async {
+    await api.post('/auth/reset-password',
+        {'token': token, 'password': password});
+  }
+
+  @override
   Future<User?> currentUser() async {
     // TODO(local): return the cached session user (from a session store).
     return null;
@@ -163,6 +174,7 @@ class LocalInmateRepository implements InmateRepository {
     required String propertyId,
     required String name,
     required String phone,
+    required String email,
     required String roomId,
     required int bedNo,
     required int rentAmount,
@@ -173,6 +185,7 @@ class LocalInmateRepository implements InmateRepository {
       'property_id': propertyId,
       'name': name,
       'phone': phone,
+      'email': email,
       'room_id': roomId,
       'bed_no': bedNo,
       'rent_amount': rentAmount,
@@ -183,6 +196,32 @@ class LocalInmateRepository implements InmateRepository {
       inmate: Inmate.fromJson(json['inmate'] as Map<String, dynamic>),
       password: json['password'] as String,
     );
+  }
+
+  @override
+  Future<Inmate> changeRoom(String inmateId,
+      {required String roomId, required int bedNo}) async {
+    final json = await api.patch('/inmates/$inmateId/room', {
+      'room_id': roomId,
+      'bed_no': bedNo,
+    });
+    return Inmate.fromJson(json['inmate'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getInvoice(String inmateId,
+      {String? month}) async {
+    final q = month == null ? '' : '?month=$month';
+    final json = await api.get('/inmates/$inmateId/invoice$q');
+    return json['invoice'] as Map<String, dynamic>;
+  }
+
+  @override
+  Future<Map<String, dynamic>> emailInvoice(String inmateId,
+      {String? month}) async {
+    return await api.post('/inmates/$inmateId/invoice/email', {
+      'month': ?month,
+    });
   }
 }
 

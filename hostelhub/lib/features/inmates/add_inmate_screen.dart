@@ -22,6 +22,7 @@ class AddInmateScreen extends ConsumerStatefulWidget {
 class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _email = TextEditingController();
   final _bedNo = TextEditingController(text: '1');
   final _rent = TextEditingController();
   final _dueDay = TextEditingController(text: '1');
@@ -33,6 +34,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _email.dispose();
     _bedNo.dispose();
     _rent.dispose();
     _dueDay.dispose();
@@ -88,6 +90,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
             propertyId: prop.id,
             name: _name.text.trim(),
             phone: _phone.text.trim(),
+            email: _email.text.trim(),
             roomId: isRoomBased ? _roomId! : '',
             bedNo: isRoomBased ? bed : 0,
             rentAmount: rent,
@@ -235,6 +238,12 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
               label: 'Phone',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone),
+          const SizedBox(height: 14),
+          GlassTextField(
+              controller: _email,
+              label: 'Email (for invoices & password reset)',
+              icon: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress),
           if (isRoomBased) ...[
             const SizedBox(height: 20),
             Text('Room', style: textTheme.titleMedium),

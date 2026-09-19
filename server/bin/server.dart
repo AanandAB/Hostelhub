@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -68,7 +70,7 @@ void _seedAdmin() {
             'phone': '',
             'username': 'admin',
             'kyc_verified': false,
-            'password': 'admin123',
+            'password': _hashPassword('admin123'),
           });
 }
 
@@ -133,6 +135,210 @@ Future<Map<String, dynamic>> _body(Request req) async {
   return raw.isEmpty ? {} : jsonDecode(raw) as Map<String, dynamic>;
 }
 
+// ── Security helpers (OWASP A04/A07) ──────────────────────────────────────
+/// Cryptographically secure random source (never `Random` for tokens).
+final _rng = Random.secure();
+
+String _randomHex(int bytes) => List.generate(
+    bytes, (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+
+/// PBKDF2-HMAC-SHA256 (OWASP-recommended password hashing primitive).
+List<int> _pbkdf2(List<int> password, List<int> salt, int iterations, int dkLen) {
+  final hmac = Hmac(sha256, password);
+  final blocks = (dkLen / 32).ceil();
+  final out = <int>[];
+  for (var i = 1; i <= blocks; i++) {
+    var u = hmac
+        .convert([...salt, (i >> 24) & 0xff, (i >> 16) & 0xff, (i >> 8) & 0xff, i & 0xff])
+        .bytes;
+    final t = List<int>.from(u);
+    for (var j = 1; j < iterations; j++) {
+      u = hmac.convert(u).bytes;
+      for (var k = 0; k < t.length; k++) {
+        t[k] ^= u[k];
+      }
+    }
+    out.addAll(t);
+  }
+  return out.sublist(0, dkLen);
+}
+
+/// Returns a salted PBKDF2 hash string: `pbkdf2$<iter>$<saltB64>$<hashB64>`.
+String _hashPassword(String password) {
+  const iterations = 100000;
+  final salt = List<int>.generate(16, (_) => _rng.nextInt(256));
+  final dk = _pbkdf2(utf8.encode(password), salt, iterations, 32);
+  return 'pbkdf2\$$iterations\$${base64.encode(salt)}\$${base64.encode(dk)}';
+}
+
+bool _verifyPassword(String password, String stored) {
+  final parts = stored.split(r'$');
+  if (parts.length != 4 || parts[0] != 'pbkdf2') return false;
+  final iterations = int.parse(parts[1]);
+  final salt = base64.decode(parts[2]);
+  final expected = parts[3];
+  final dk = _pbkdf2(utf8.encode(password), salt, iterations, 32);
+  return base64.encode(dk) == expected;
+}
+
+/// Password-reset tokens: token_hash -> {user_id, expires_at}.
+final Map<String, Map<String, dynamic>> _resetTokens = {};
+
+/// Minimal login rate limiter (per IP) — blocks credential stuffing (A07).
+/// Production should use edge-level rate limiting (Cloudflare/WAF).
+final Map<String, List<DateTime>> _loginAttempts = {};
+String _clientIp(Request req) {
+  final xff = req.headers['x-forwarded-for'];
+  if (xff != null && xff.isNotEmpty) return xff.split(',').first.trim();
+  final conn = req.context['shelf.io.connection_info'];
+  if (conn is HttpConnectionInfo) return conn.remoteAddress.address;
+  return 'unknown';
+}
+bool _rateLimited(String ip) {
+  const window = Duration(minutes: 15);
+  const maxAttempts = 10;
+  final now = DateTime.now();
+  final list = _loginAttempts.putIfAbsent(ip, () => []);
+  list.removeWhere((t) => now.difference(t) > window);
+  if (list.length >= maxAttempts) return true;
+  list.add(now);
+  return false;
+}
+
+/// Pluggable email transport. Currently a LOG transport (writes each message
+/// to `outbox/` + console). To go live, replace this body with SMTP/Resend —
+/// the call sites don't change.
+Future<void> _sendEmail(
+    {required String to, required String subject, required String html}) async {
+  final dir = Directory('outbox');
+  if (!dir.existsSync()) dir.createSync(recursive: true);
+  final safe = to.replaceAll(RegExp(r'[^a-zA-Z0-9@.]'), '_');
+  final file = File('outbox/${DateTime.now().millisecondsSinceEpoch}-$safe.html');
+  await file.writeAsString('Subject: $subject\nTo: $to\n\n$html');
+  print('[email] to=$to subject="$subject" -> ${file.path}');
+}
+
+/// Simple server-rendered password-reset page (opened from the emailed link).
+String _resetPage() => '''
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset password — HostelHub</title>
+<style>
+ body{font-family:system-ui,sans-serif;max-width:360px;margin:60px auto;padding:0 20px}
+ input{width:100%;padding:12px;margin:8px 0;font-size:16px;box-sizing:border-box}
+ button{width:100%;padding:12px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:8px}
+ #msg{margin-top:12px;font-size:14px}
+</style></head><body>
+<h2>Reset your password</h2>
+<p>Choose a new password for your HostelHub account.</p>
+<input type="password" id="p1" placeholder="New password" autocomplete="new-password">
+<input type="password" id="p2" placeholder="Confirm password" autocomplete="new-password">
+<button onclick="doReset()">Reset password</button>
+<div id="msg"></div>
+<script>
+const token = new URLSearchParams(location.search).get('token') || '';
+async function doReset(){
+  const p1=document.getElementById('p1').value;
+  const p2=document.getElementById('p2').value;
+  const m=document.getElementById('msg');
+  if(p1.length<6){m.textContent='Password must be at least 6 characters';return;}
+  if(p1!==p2){m.textContent='Passwords do not match';return;}
+  const r=await fetch('/auth/reset-password',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token,password:p1})});
+  const d=await r.json();
+  m.textContent=d.ok?'Password reset! You can now log in.':(d.error||'Reset failed.');
+}
+</script></body></html>''';
+
+/// Next due date based on the inmate's monthly due day.
+String _nextDueDate(Map<String, dynamic> inmate, DateTime now) {
+  final dueDay = (inmate['due_day'] as int? ?? 1).clamp(1, 28).toInt();
+  var d = DateTime(now.year, now.month, dueDay);
+  if (!d.isAfter(now)) d = DateTime(now.year, now.month + 1, dueDay);
+  return d.toIso8601String().substring(0, 10);
+}
+
+/// Builds a structured per-inmate invoice (rent + outstanding dues).
+Map<String, dynamic> _buildInvoice(Map<String, dynamic> inmate, {String? month}) {
+  final propertyId = inmate['property_id'] as String;
+  final property = _findById(_properties, propertyId);
+  final now = DateTime.now();
+  final period = month ?? '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  final invoiceNo = 'INV-${period.replaceAll('-', '')}-${inmate['id']}';
+  final rentAmount = (inmate['rent_amount'] as num?)?.toInt() ?? 0;
+  var dues = 0;
+  for (final p in _payments) {
+    if (p['inmate_id'] == inmate['id'] && p['status'] != 'paid') {
+      dues += (p['amount'] as num?)?.toInt() ?? 0;
+    }
+  }
+  var depositHeld = 0;
+  for (final d in _deposits) {
+    if (d['inmate_id'] == inmate['id']) {
+      depositHeld += (d['amount_collected'] as num?)?.toInt() ?? 0;
+      for (final ded in (d['deductions'] as List? ?? const [])) {
+        depositHeld -= ((ded as Map)['amount'] as num?)?.toInt() ?? 0;
+      }
+    }
+  }
+  final lineItems = <Map<String, dynamic>>[
+    {'description': 'Room rent — $period', 'amount': rentAmount},
+    if (dues > 0) {'description': 'Outstanding dues', 'amount': dues},
+  ];
+  final total = rentAmount + dues;
+  return <String, dynamic>{
+    'invoice_no': invoiceNo,
+    'invoice_date': now.toIso8601String().substring(0, 10),
+    'period': period,
+    'due_date': _nextDueDate(inmate, now),
+    'property': {
+      'name': property?['name'] ?? '',
+      'address': property?['address'] ?? '',
+    },
+    'inmate': {
+      'name': inmate['name'],
+      'email': inmate['email'] ?? '',
+      'phone': inmate['phone'] ?? '',
+      'room_no': inmate['room_no'] ?? '',
+      'bed_no': inmate['bed_no'] ?? 0,
+    },
+    'line_items': lineItems,
+    'subtotal': total,
+    'total': total,
+    'deposit_held': depositHeld,
+    'currency': 'INR',
+  };
+}
+
+/// HTML email body for an invoice (used by the log transport).
+String _invoiceHtml(Map<String, dynamic> inv) {
+  final p = inv['property'] as Map;
+  final i = inv['inmate'] as Map;
+  final roomNo = i['room_no'] ?? '';
+  final phone = i['phone'] ?? '';
+  final rows = (inv['line_items'] as List)
+      .map((li) => '<tr><td style="padding:6px 0">${li['description']}</td>'
+          '<td style="text-align:right">₹${li['amount']}</td></tr>')
+      .join();
+  final roomLine = roomNo.isNotEmpty ? ' — Room $roomNo / Bed ${i['bed_no']}' : '';
+  final phoneLine = phone.isNotEmpty ? ' · $phone' : '';
+  return '<div style="font-family:sans-serif;max-width:560px;margin:auto">'
+      '<h2>${p['name']}</h2><p>${p['address']}</p><hr>'
+      '<h3>Invoice ${inv['invoice_no']}</h3>'
+      '<p>Date: ${inv['invoice_date']} &nbsp;|&nbsp; Due: ${inv['due_date']}</p>'
+      '<p><strong>Billed to:</strong> ${i['name']}$roomLine<br>'
+      '${i['email']}$phoneLine</p>'
+      '<table width="100%" style="border-collapse:collapse;border-top:1px solid #ddd">'
+      '<tr><th align="left" style="padding:6px 0">Description</th><th align="right">Amount</th></tr>'
+      '$rows'
+      '<tr style="border-top:1px solid #ddd"><td style="padding:6px 0"><strong>Total</strong></td>'
+      '<td align="right"><strong>₹${inv['total']}</strong></td></tr>'
+      '</table>'
+      '<p>Deposit held: ₹${inv['deposit_held']}</p>'
+      '<p style="color:#666">Please pay by the due date. Thank you!</p></div>';
+}
+
 Router _router() {
   final router = Router();
   _seedAdmin();
@@ -149,9 +355,10 @@ Router _router() {
       'property_id': body['property_id'],
       'name': body['name'] ?? '',
       'phone': body['phone'] ?? '',
+      'email': body['email'] ?? '',
       'username': username,
       'kyc_verified': false,
-      'password': body['password'], // local-only; real auth is Supabase/Firebase
+      'password': _hashPassword(body['password'] as String? ?? ''),
     };
     _users[user['id'] as String] = user;
     if (user['role'] == 'owner') _ensureSubscription(user['id'] as String);
@@ -160,6 +367,9 @@ Router _router() {
   });
 
   router.post('/auth/login', (Request req) async {
+    if (_rateLimited(_clientIp(req))) {
+      return _json({'error': 'Too many attempts. Try again later.'}, 429);
+    }
     final body = await _body(req);
     final username = body['username'] as String;
     final password = body['password'] as String? ?? '';
@@ -170,9 +380,8 @@ Router _router() {
     if (found == null) {
       return _json({'error': 'invalid credentials'}, 401);
     }
-    // Verify password when one is stored (registered users + onboarded inmates).
     final stored = found['password'];
-    if (stored != null && stored != password) {
+    if (stored != null && !_verifyPassword(password, stored as String)) {
       return _json({'error': 'invalid credentials'}, 401);
     }
     if (found['role'] == 'owner') {
@@ -184,6 +393,70 @@ Router _router() {
     return _json(
         {'token': 'local-token-${found['id']}', 'user': _publicUser(found)}, 200);
   });
+
+  // ── Password reset (email-link, expiring token) ─────────────────────────
+  router.post('/auth/forgot-password', (Request req) async {
+    if (_rateLimited(_clientIp(req))) {
+      return _json({'error': 'Too many attempts. Try again later.'}, 429);
+    }
+    final body = await _body(req);
+    final email = (body['email'] as String? ?? '').trim().toLowerCase();
+    Map<String, dynamic>? user;
+    for (final u in _users.values) {
+      final ue = (u['email'] as String? ?? '').toLowerCase();
+      if (email.isNotEmpty && ue == email) {
+        user = u;
+        break;
+      }
+    }
+    // Always return success — never reveal whether an email exists (A07).
+    if (user == null) return _json({'ok': true});
+    final token = _randomHex(32);
+    final tokenHash = sha256.convert(utf8.encode(token)).toString();
+    _resetTokens[tokenHash] = {
+      'user_id': user['id'],
+      'expires_at':
+          DateTime.now().add(const Duration(minutes: 15)).toIso8601String(),
+    };
+    final host = req.headers['host'] ?? 'localhost:8081';
+    final link = 'http://$host/reset?token=$token';
+    await _sendEmail(
+      to: email,
+      subject: 'Reset your HostelHub password',
+      html: '<p>Hi ${user['name'] ?? ''},</p>'
+          '<p>Tap the link below to reset your password (valid for 15 minutes):</p>'
+          '<p><a href="$link">$link</a></p>'
+          "<p>If you didn't request this, you can safely ignore this email.</p>",
+    );
+    return _json({'ok': true});
+  });
+
+  router.post('/auth/reset-password', (Request req) async {
+    final body = await _body(req);
+    final token = body['token'] as String? ?? '';
+    final password = body['password'] as String? ?? '';
+    if (password.length < 6) {
+      return _json({'error': 'Password must be at least 6 characters'}, 400);
+    }
+    final tokenHash = sha256.convert(utf8.encode(token)).toString();
+    final record = _resetTokens[tokenHash];
+    if (record == null) {
+      return _json({'error': 'Invalid or expired reset link'}, 400);
+    }
+    if (DateTime.now().isAfter(DateTime.parse(record['expires_at'] as String))) {
+      _resetTokens.remove(tokenHash);
+      return _json({'error': 'Reset link has expired'}, 400);
+    }
+    final user = _users[record['user_id'] as String];
+    if (user != null) user['password'] = _hashPassword(password);
+    _resetTokens.remove(tokenHash); // single-use
+    return _json({'ok': true});
+  });
+
+  // Simple browser page opened from the emailed reset link.
+  router.get('/reset', (Request req) => Response.ok(
+      _resetPage(),
+      headers: {'Content-Type': 'text/html; charset=utf-8'}));
 
   // ── Properties ────────────────────────────────────────────────────────
   router.get('/properties', (Request req) {
@@ -432,11 +705,13 @@ Router _router() {
     final id = _nextId('user');
     final username = _genUsername(name);
     final password = _genPassword();
+    final email = body['email'] as String? ?? '';
     final inmate = <String, dynamic>{
       'id': id,
       'property_id': body['property_id'],
       'name': name,
       'phone': body['phone'] ?? '',
+      'email': email,
       'username': username,
       'room_id': roomId,
       'room_no': roomNo,
@@ -455,11 +730,76 @@ Router _router() {
       'property_id': body['property_id'],
       'name': name,
       'phone': body['phone'] ?? '',
+      'email': email,
       'username': username,
       'kyc_verified': false,
-      'password': password,
+      'password': _hashPassword(password),
     };
     return _json({'inmate': inmate, 'password': password}, 201);
+  });
+
+  // ── Inmate room change (re-validates capacity + bed uniqueness) ─────────
+  router.patch('/inmates/<id>/room', (Request req, String id) async {
+    final body = await _body(req);
+    final inmate = _inmateById(id);
+    if (inmate == null) return _json({'error': 'not found'}, 404);
+    final property = _findById(_properties, inmate['property_id'] as String);
+    final type = property?['type'] as String? ?? 'hostel';
+    if (type == 'house' || type == 'office') {
+      return _json({'error': 'This property has no rooms'}, 400);
+    }
+    final roomId = body['room_id'] as String? ?? '';
+    if (roomId.isEmpty) return _json({'error': 'room_id is required'}, 400);
+    final room = _findById(_rooms, roomId);
+    if (room == null) return _json({'error': 'Room not found'}, 404);
+    final roomNo = room['room_no'] as String;
+    final capacity = room['capacity'] as int? ?? 1;
+    final bedNo = body['bed_no'] as int? ?? 1;
+    if (bedNo < 1 || bedNo > capacity) {
+      return _json({'error': 'Bed $bedNo is out of range (1-$capacity)'}, 409);
+    }
+    final occupied = _inmates
+        .where((i) => i['room_id'] == roomId && i['id'] != id)
+        .length;
+    if (occupied >= capacity) {
+      return _json({'error': 'Room $roomNo is full ($occupied/$capacity)'}, 409);
+    }
+    final bedTaken = _inmates.any((i) =>
+        i['room_id'] == roomId && i['bed_no'] == bedNo && i['id'] != id);
+    if (bedTaken) {
+      return _json({'error': 'Bed $bedNo in room $roomNo is already taken'}, 409);
+    }
+    inmate['room_id'] = roomId;
+    inmate['room_no'] = roomNo;
+    inmate['bed_no'] = bedNo;
+    return _json({'inmate': inmate});
+  });
+
+  // ── Per-inmate invoice ──────────────────────────────────────────────────
+  router.get('/inmates/<id>/invoice', (Request req, String id) {
+    final inmate = _inmateById(id);
+    if (inmate == null) return _json({'error': 'not found'}, 404);
+    final month = req.url.queryParameters['month'];
+    return _json({'invoice': _buildInvoice(inmate, month: month)});
+  });
+
+  router.post('/inmates/<id>/invoice/email', (Request req, String id) async {
+    final inmate = _inmateById(id);
+    if (inmate == null) return _json({'error': 'not found'}, 404);
+    final email = inmate['email'] as String? ?? '';
+    if (email.isEmpty) {
+      return _json({'error': 'This inmate has no email on file'}, 400);
+    }
+    final body = await _body(req);
+    final month = body['month'] as String?;
+    final inv = _buildInvoice(inmate, month: month);
+    await _sendEmail(
+      to: email,
+      subject:
+          'Invoice ${inv['invoice_no']} — ${(inv['property'] as Map)['name']}',
+      html: _invoiceHtml(inv),
+    );
+    return _json({'sent': true, 'to': email, 'invoice': inv});
   });
 
   // ── Rent plans (derived from inmate rent terms) ─────────────────────────

@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
+import '../../data/models/property.dart';
+import '../../data/models/room.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 import '../rent/rent_providers.dart';
 import '../ops/ops_providers.dart';
+import 'invoice_pdf.dart';
 
 /// Full live profile of one inmate: personal details, stay dates, deposit,
 /// payment history, complaints and leave — everything in one place.
@@ -31,7 +36,7 @@ class InmateDetailScreen extends ConsumerWidget {
           child: propAsync.when(
             data: (prop) => prop == null
                 ? Center(child: Text('No property', style: textTheme.bodyMedium))
-                : _content(context, ref, prop.id, textTheme),
+                : _content(context, ref, prop, textTheme),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, _) => const Center(child: Text('Error')),
           ),
@@ -40,10 +45,10 @@ class InmateDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _content(BuildContext context, WidgetRef ref, String propertyId,
-      TextTheme textTheme) {
+  Widget _content(
+      BuildContext context, WidgetRef ref, Property prop, TextTheme textTheme) {
     final inmates =
-        ref.watch(inmatesProvider(propertyId)).value ?? const <Inmate>[];
+        ref.watch(inmatesProvider(prop.id)).value ?? const <Inmate>[];
     Inmate? inmate;
     for (final i in inmates) {
       if (i.id == inmateId) {
@@ -67,6 +72,8 @@ class InmateDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
       children: [
         _profileCard(context, inmate, textTheme),
+        const SizedBox(height: 12),
+        _actionsCard(context, ref, inmate, prop, textTheme),
         const SizedBox(height: 12),
         _stayCard(context, inmate, textTheme),
         if (deposit != null) ...[
@@ -137,8 +144,10 @@ class InmateDetailScreen extends ConsumerWidget {
             ],
           ),
           const Divider(height: 24),
-          _row(context, 'Room / bed', 'Room ${i.roomNo} · Bed ${i.bedNo}'),
+          _row(context, 'Room / bed',
+              i.roomNo.isNotEmpty ? 'Room ${i.roomNo} · Bed ${i.bedNo}' : 'Tenant'),
           _row(context, 'Rent', '₹${i.rentAmount}/mo · due day ${i.dueDay}'),
+          if (i.email.isNotEmpty) _row(context, 'Email', i.email),
           if (i.username.isNotEmpty) _row(context, 'Username', i.username),
         ],
       ),
@@ -281,5 +290,135 @@ class InmateDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  // ── Actions: change room, invoice PDF, email invoice ────────────────────
+  Widget _actionsCard(BuildContext context, WidgetRef ref, Inmate i,
+      Property prop, TextTheme textTheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? AppColors.primaryDark : AppColors.primary;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (prop.isHostelOrPg) ...[
+            GlassButton(
+              label: 'Change room',
+              icon: Icons.meeting_room_rounded,
+              color: primary.withValues(alpha: 0.85),
+              onPressed: () => _changeRoom(context, ref, i, prop),
+            ),
+            const SizedBox(height: 10),
+          ],
+          GlassButton(
+            label: 'Generate invoice PDF',
+            icon: Icons.picture_as_pdf_rounded,
+            onPressed: () => _shareInvoice(context, ref, i),
+          ),
+          const SizedBox(height: 10),
+          GlassButton(
+            label: 'Email invoice',
+            icon: Icons.email_rounded,
+            onPressed: () => _emailInvoice(context, ref, i),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareInvoice(BuildContext context, WidgetRef ref, Inmate i) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final invoice =
+          await ref.read(backendProvider).inmates.getInvoice(i.id);
+      final doc = buildInvoicePdf(invoice);
+      await Printing.sharePdf(
+          bytes: await doc.save(),
+          filename: 'invoice-${invoice['invoice_no']}.pdf');
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not generate invoice: $e')));
+    }
+  }
+
+  Future<void> _emailInvoice(BuildContext context, WidgetRef ref, Inmate i) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (i.email.isEmpty) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('This inmate has no email on file')));
+      return;
+    }
+    try {
+      final res =
+          await ref.read(backendProvider).inmates.emailInvoice(i.id);
+      messenger.showSnackBar(
+          SnackBar(content: Text('Invoice emailed to ${res['to']}')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not email invoice: $e')));
+    }
+  }
+
+  Future<void> _changeRoom(
+      BuildContext context, WidgetRef ref, Inmate i, Property prop) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final rooms = ref.read(roomsProvider(prop.id)).value ?? const <Room>[];
+    final inmates =
+        ref.read(inmatesProvider(prop.id)).value ?? const <Inmate>[];
+    if (rooms.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('No rooms available')));
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Move to room'),
+        children: [
+          for (final r in rooms)
+            Builder(builder: (_) {
+              final count = inmates
+                  .where((x) => x.roomId == r.id && x.id != i.id)
+                  .length;
+              final full = count >= r.capacity;
+              return ListTile(
+                leading: const Icon(Icons.meeting_room_rounded),
+                title: Text('Room ${r.roomNo}'),
+                subtitle: Text('$count/${r.capacity} occupied'),
+                enabled: !full,
+                onTap: () => Navigator.of(ctx).pop(r.id),
+              );
+            }),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    final room = rooms.firstWhere((r) => r.id == choice);
+    final bed = _firstFreeBed(choice, inmates, room.capacity, i.id);
+    if (bed == 0) {
+      messenger.showSnackBar(const SnackBar(content: Text('Room is full')));
+      return;
+    }
+    try {
+      await ref
+          .read(backendProvider)
+          .inmates
+          .changeRoom(i.id, roomId: choice, bedNo: bed);
+      ref.invalidate(inmatesProvider(prop.id));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Moved to Room ${room.roomNo}, bed $bed')));
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not change room: $e')));
+    }
+  }
+
+  int _firstFreeBed(
+      String roomId, List<Inmate> inmates, int capacity, String excludeId) {
+    for (var b = 1; b <= capacity; b++) {
+      final taken = inmates
+          .any((x) => x.roomId == roomId && x.bedNo == b && x.id != excludeId);
+      if (!taken) return b;
+    }
+    return 0;
   }
 }

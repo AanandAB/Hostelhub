@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/user.dart';
 import '../../features/admin/admin_panel_screen.dart';
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/forgot_password_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/splash_screen.dart';
@@ -36,7 +37,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authControllerProvider);
       final loc = state.matchedLocation;
       final loggedIn = auth.user != null;
-      final onAuth = loc == '/login' || loc == '/register';
+      final onAuth = loc == '/login' ||
+          loc == '/register' ||
+          loc == '/forgot-password';
       final ownerOnly = loc == '/setup' ||
           loc.startsWith('/inmates/') ||
           loc == '/complaints' ||
@@ -75,6 +78,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/admin', builder: (_, _) => const AdminPanelScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+      GoRoute(
+          path: '/forgot-password',
+          builder: (_, _) => const ForgotPasswordScreen()),
       GoRoute(path: '/home', builder: (_, _) => const AppShell()),
       GoRoute(path: '/setup', builder: (_, _) => const SetupScreen()),
       GoRoute(path: '/inmates/new', builder: (_, _) => const AddInmateScreen()),

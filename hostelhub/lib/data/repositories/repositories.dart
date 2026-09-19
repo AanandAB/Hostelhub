@@ -24,6 +24,8 @@ import '../models/visitor.dart';
 abstract class AuthRepository {
   Future<User> login(String username, String password);
   Future<User> register(User user, String password);
+  Future<void> forgotPassword(String email);
+  Future<void> resetPassword(String token, String password);
   Future<User?> currentUser();
   Future<void> logout();
 }
@@ -59,12 +61,23 @@ abstract class InmateRepository {
     required String propertyId,
     required String name,
     required String phone,
+    required String email,
     required String roomId,
     required int bedNo,
     required int rentAmount,
     required int dueDay,
     required String joinDate,
   });
+
+  /// Reassign an inmate to a different room/bed (hostel/PG only).
+  Future<Inmate> changeRoom(String inmateId,
+      {required String roomId, required int bedNo});
+
+  /// Fetch the structured per-inmate invoice data.
+  Future<Map<String, dynamic>> getInvoice(String inmateId, {String? month});
+
+  /// Email the invoice to the inmate's address; returns `{sent, to, invoice}`.
+  Future<Map<String, dynamic>> emailInvoice(String inmateId, {String? month});
 }
 
 /// Rent plans + payments for the rent engine.

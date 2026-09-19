@@ -78,6 +78,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     icon: Icons.lock_outline,
                     obscure: true,
                   ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => context.go('/forgot-password'),
+                      child: Text(
+                        'Forgot password?',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   GlassButton(
                     label: 'Log in',
