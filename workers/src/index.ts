@@ -10,6 +10,9 @@
 export interface Env {
   DB: D1Database;
   JWT_SECRET?: string;
+  RAZORPAY_KEY_ID?: string;
+  RAZORPAY_KEY_SECRET?: string;
+  RAZORPAY_WEBHOOK_SECRET?: string;
 }
 
 // ── HTTP helpers ───────────────────────────────────────────────────────────
@@ -103,6 +106,27 @@ function publicUser(u: Record<string, any>) {
 async function sendEmail(to: string, subject: string, html: string) {
   console.log(`[email] to=${to} subject="${subject}"`);
   console.log(html);
+}
+
+// ── Razorpay client ────────────────────────────────────────────────────────
+const RZP = 'https://api.razorpay.com/v1';
+
+async function razorpay(env: Env, method: string, path: string, data?: any): Promise<Record<string, any>> {
+  const resp = await fetch(`${RZP}${path}`, {
+    method,
+    headers: {
+      Authorization: 'Basic ' + btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`),
+      'Content-Type': 'application/json',
+    },
+    body: data ? JSON.stringify(data) : undefined,
+  });
+  return (await resp.json()) as Record<string, any>;
+}
+
+async function hmacSha256Hex(key: string, msg: string): Promise<string> {
+  const k = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', k, enc.encode(msg));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function propertyOut(p: Record<string, any>) {
@@ -666,6 +690,52 @@ export default {
           if (action === 'upgrade') await run(env, 'UPDATE subscriptions SET property_limit = property_limit + 1 WHERE owner_id = ?1', ownerId);
           return cors(json({ subscription: await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', ownerId) }));
         }
+      }
+
+      // ── Razorpay: orders, autopay mandates, webhooks ─────────────────────
+      if (method === 'POST' && path === '/razorpay/order') {
+        const b = await body(req);
+        // Create an order (used for the owner's subscription payment). Works in test mode.
+        const order = await razorpay(env, 'POST', '/orders', {
+          amount: b.amount,
+          currency: 'INR',
+          receipt: b.receipt || `rcpt_${uuid()}`,
+          notes: { owner_id: b.owner_id || '', purpose: b.purpose || 'subscription' },
+        });
+        return cors(json(order));
+      }
+
+      if (method === 'POST' && path === '/razorpay/autopay/link') {
+        const b = await body(req);
+        // UPI Autopay e-mandate registration link. Requires a LIVE account with
+        // UPI Autopay enabled (no test values). `sub_merchant_id` binds the
+        // mandate to an owner's Route sub-merchant so rent settles to them.
+        const payload: Record<string, any> = {
+          customer: { name: b.customer_name, contact: b.contact, email: b.email },
+          amount: b.amount,
+          currency: 'INR',
+          frequency: 'monthly',
+          notes: { inmate_id: b.inmate_id || '', property_id: b.property_id || '' },
+        };
+        if (b.sub_merchant_id) payload.sub_merchant_id = b.sub_merchant_id;
+        const link = await razorpay(env, 'POST', '/payments/recurring/upi/create-authorization-transaction', payload);
+        return cors(json(link));
+      }
+
+      if (method === 'POST' && path === '/razorpay/webhook') {
+        const raw = await req.text();
+        const sig = req.headers.get('x-razorpay-signature') || '';
+        // Verify signature (HMAC-SHA256) before trusting the event.
+        if (env.RAZORPAY_WEBHOOK_SECRET) {
+          const expected = await hmacSha256Hex(env.RAZORPAY_WEBHOOK_SECRET, raw);
+          if (expected !== sig) return cors(json({ error: 'invalid signature' }, 400));
+        }
+        let event: any = {};
+        try { event = JSON.parse(raw); } catch { return cors(json({ error: 'bad payload' }, 400)); }
+        console.log('[razorpay webhook]', event.event, event.payload?.payment?.entity?.id || event.payload?.mandate?.entity?.id || '');
+        // TODO(live): update payments/subscriptions from event.event
+        // (payment.captured, payment.failed, mandate.activated, ...).
+        return cors(json({ received: true }));
       }
 
       return cors(json({ error: 'not found' }, 404));
