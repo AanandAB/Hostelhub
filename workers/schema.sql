@@ -9,10 +9,18 @@ CREATE TABLE IF NOT EXISTS users (
   property_id  TEXT,
   name         TEXT NOT NULL DEFAULT '',
   phone        TEXT NOT NULL DEFAULT '',
+  email        TEXT NOT NULL DEFAULT '',
   username     TEXT NOT NULL UNIQUE,
-  password     TEXT NOT NULL,              -- hashed in production (bcrypt/argon2)
+  password     TEXT NOT NULL,              -- PBKDF2-SHA256 hashed
   kyc_verified INTEGER NOT NULL DEFAULT 0,
   created_at   TEXT NOT NULL
+);
+
+-- One-time, expiring password-reset tokens (token_hash → user).
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  expires_at TEXT NOT NULL
 );
 
 -- ── Subscriptions & pricing (SaaS operator) ──────────────────────────────
@@ -65,6 +73,7 @@ CREATE TABLE IF NOT EXISTS inmates (
   property_id   TEXT NOT NULL,
   name          TEXT NOT NULL,
   phone         TEXT NOT NULL DEFAULT '',
+  email         TEXT NOT NULL DEFAULT '',
   username      TEXT NOT NULL,
   room_id       TEXT NOT NULL DEFAULT '',  -- empty for house/office (no rooms)
   room_no       TEXT NOT NULL DEFAULT '',
