@@ -81,7 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
-                      onTap: () => context.go('/forgot-password'),
+                      onTap: () => context.push('/forgot-password'),
                       child: Text(
                         'Forgot password?',
                         style: textTheme.bodyMedium?.copyWith(
@@ -103,7 +103,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       Text("Don't have an account? ", style: textTheme.bodyMedium),
                       GestureDetector(
-                        onTap: () => context.go('/register'),
+                        onTap: () => context.push('/register'),
                         child: Text(
                           'Sign up',
                           style: textTheme.bodyLarge?.copyWith(

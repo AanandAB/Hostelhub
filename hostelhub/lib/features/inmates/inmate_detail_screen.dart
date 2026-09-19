@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
@@ -321,6 +322,13 @@ class InmateDetailScreen extends ConsumerWidget {
             icon: Icons.email_rounded,
             onPressed: () => _emailInvoice(context, ref, i),
           ),
+          const SizedBox(height: 10),
+          GlassButton(
+            label: 'Send invoice via WhatsApp',
+            icon: Icons.forum_rounded,
+            color: const Color(0xFF25D366).withValues(alpha: 0.85),
+            onPressed: () => _whatsappInvoice(context, ref, i),
+          ),
         ],
       ),
     );
@@ -357,6 +365,44 @@ class InmateDetailScreen extends ConsumerWidget {
       messenger.showSnackBar(
           SnackBar(content: Text('Could not email invoice: $e')));
     }
+  }
+
+  Future<void> _whatsappInvoice(
+      BuildContext context, WidgetRef ref, Inmate i) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (i.phone.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('This inmate has no phone number on file')));
+      return;
+    }
+    try {
+      final inv = await ref.read(backendProvider).inmates.getInvoice(i.id);
+      final prop = (inv['property'] as Map)['name'] ?? '';
+      final lines = (inv['line_items'] as List)
+          .map((li) => '• ${li['description']}: Rs. ${li['amount']}')
+          .join('\n');
+      final msg = 'Invoice ${inv['invoice_no']} — $prop\n'
+          'Period: ${inv['period']} | Due: ${inv['due_date']}\n\n'
+          'Hi ${i.name}, here is your bill:\n$lines\n\n'
+          'Total due: Rs. ${inv['total']}';
+      final number = _whatsappNumber(i.phone);
+      final uri = Uri.parse(
+          'https://wa.me/$number?text=${Uri.encodeComponent(msg)}');
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Could not open WhatsApp')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not prepare invoice: $e')));
+    }
+  }
+
+  /// Normalise a phone number for wa.me (expects international format).
+  String _whatsappNumber(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    return digits.length == 10 ? '91$digits' : digits; // assume India if 10-digit
   }
 
   Future<void> _changeRoom(

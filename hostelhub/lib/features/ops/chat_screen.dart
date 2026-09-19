@@ -56,7 +56,7 @@ class ChatListScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: GlassCard(
-              onTap: () => context.go('/chat/${i.id}'),
+              onTap: () => context.push('/chat/${i.id}'),
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
