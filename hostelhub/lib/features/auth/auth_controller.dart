@@ -31,8 +31,8 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(sessionStoreProvider).saveUser(user);
       state = AuthState(user: user);
       return null;
-    } catch (_) {
-      return 'Login failed — check your username/password and that the server is running.';
+    } catch (e) {
+      return 'Login failed: $e';
     }
   }
 
@@ -57,8 +57,8 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(sessionStoreProvider).saveUser(created);
       state = AuthState(user: created);
       return null;
-    } catch (_) {
-      return 'Registration failed — is the server running?';
+    } catch (e) {
+      return 'Registration failed: $e';
     }
   }
 

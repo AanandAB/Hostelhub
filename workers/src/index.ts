@@ -220,11 +220,15 @@ export default {
       // ── Auth ────────────────────────────────────────────────────────────
       if (method === 'POST' && path === '/auth/register') {
         const b = await body(req);
+        const username = (b.username || '').trim();
+        if (!username) return cors(json({ error: 'Username is required' }, 400));
+        if (await first(env, 'SELECT id FROM users WHERE username = ?1', username))
+          return cors(json({ error: 'Username already taken' }, 409));
         const id = uuid();
         await run(env,
           'INSERT INTO users (id, role, property_id, name, phone, email, username, password, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)',
           id, b.role || 'owner', b.property_id ?? null, b.name || '', b.phone || '', b.email || '',
-          b.username, await hashPassword(b.password || ''), nowIso());
+          username, await hashPassword(b.password || ''), nowIso());
         const user = await first(env, 'SELECT * FROM users WHERE id = ?1', id);
         if (user && user.role === 'owner') {
           await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', id, 'monthly', 'active', 1);

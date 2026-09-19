@@ -1,0 +1,22 @@
+-- Wipe all test data (keep the default pricing row).
+DELETE FROM password_reset_tokens;
+DELETE FROM subscriptions;
+DELETE FROM pricing_overrides;
+DELETE FROM documents;
+DELETE FROM sos_alerts;
+DELETE FROM ratings;
+DELETE FROM expenses;
+DELETE FROM chat_messages;
+DELETE FROM checkouts;
+DELETE FROM deposits;
+DELETE FROM leave_records;
+DELETE FROM visitors;
+DELETE FROM notices;
+DELETE FROM complaints;
+DELETE FROM poll_responses;
+DELETE FROM polls;
+DELETE FROM payments;
+DELETE FROM inmates;
+DELETE FROM rooms;
+DELETE FROM properties;
+DELETE FROM users;
