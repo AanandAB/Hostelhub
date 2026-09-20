@@ -97,9 +97,15 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
   return b64(new Uint8Array(bits)) === parts[3];
 }
 
+const boolField = (v: any) => v === true || v === 1 || v === '1' || v === 'true';
+
 function publicUser(u: Record<string, any>) {
   const { password: _pw, ...rest } = u;
-  return rest;
+  return { ...rest, kyc_verified: boolField(rest.kyc_verified) };
+}
+
+function inmateOut(i: Record<string, any>) {
+  return { ...i, kyc_verified: boolField(i.kyc_verified) };
 }
 
 /// LOG email transport — console only. Swap body for Resend/SendGrid later.
@@ -337,7 +343,7 @@ export default {
       // ── Inmates ─────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/inmates') {
         const rows = await all(env, 'SELECT * FROM inmates WHERE property_id = ?1', q.get('property_id'));
-        return cors(json({ inmates: rows }));
+        return cors(json({ inmates: rows.map(inmateOut) }));
       }
 
       if (method === 'POST' && path === '/inmates') {
@@ -365,7 +371,7 @@ export default {
           id, b.property_id, b.name, b.phone || '', email, username, roomId, roomNo, bedNo, b.rent_amount || 0, b.due_day || 1, b.join_date ?? null);
         await run(env, 'INSERT INTO users (id, role, property_id, name, phone, email, username, password, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)',
           id, 'inmate', b.property_id, b.name, b.phone || '', email, username, await hashPassword(password), nowIso());
-        return cors(json({ inmate: await first(env, 'SELECT * FROM inmates WHERE id = ?1', id), password }, 201));
+        return cors(json({ inmate: inmateOut((await first(env, 'SELECT * FROM inmates WHERE id = ?1', id))!), password }, 201));
       }
 
       const inmateSeg = path.match(/^\/inmates\/([^/]+)(?:\/(room|invoice|invoice\/email))?$/);
@@ -390,7 +396,7 @@ export default {
           if (await first(env, 'SELECT id FROM inmates WHERE room_id = ?1 AND bed_no = ?2 AND id != ?3', b.room_id, bedNo, id))
             return cors(json({ error: `Bed ${bedNo} in room ${room.room_no} is already taken` }, 409));
           await run(env, 'UPDATE inmates SET room_id = ?1, room_no = ?2, bed_no = ?3 WHERE id = ?4', b.room_id, room.room_no, bedNo, id);
-          return cors(json({ inmate: await first(env, 'SELECT * FROM inmates WHERE id = ?1', id) }));
+          return cors(json({ inmate: inmateOut((await first(env, 'SELECT * FROM inmates WHERE id = ?1', id))!) }));
         }
 
         if (sub === 'invoice' && method === 'GET') {
@@ -434,14 +440,14 @@ export default {
 
       // ── Polls ───────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/polls')
-        return cors(json({ polls: await all(env, 'SELECT * FROM polls WHERE property_id = ?1', q.get('property_id')) }));
+        return cors(json({ polls: (await all(env, 'SELECT * FROM polls WHERE property_id = ?1', q.get('property_id'))).map((p) => ({ ...p, recurring: boolField(p.recurring) })) }));
       if (method === 'POST' && path === '/polls') {
         const b = await body(req);
         const id = uuid();
         await run(env, 'INSERT INTO polls (id, property_id, meal_type, for_date, send_at, close_at, recurring, options) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)',
           id, b.property_id, b.meal_type, b.for_date ?? null, b.send_at ?? null, b.close_at ?? null, b.recurring ? 1 : 0, JSON.stringify(b.options || ['Yes', 'No']));
         const p = await first(env, 'SELECT * FROM polls WHERE id = ?1', id);
-        return cors(json({ poll: { ...p, options: parseJson(p!.options, ['Yes', 'No']) } }, 201));
+        return cors(json({ poll: { ...p, recurring: boolField(p!.recurring), options: parseJson(p!.options, ['Yes', 'No']) } }, 201));
       }
       const pollRespSeg = path.match(/^\/polls\/([^/]+)\/respond$/);
       if (pollRespSeg && method === 'POST') {
@@ -620,19 +626,21 @@ export default {
 
       // ── SOS ─────────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/sos')
-        return cors(json({ sos: await all(env, 'SELECT * FROM sos_alerts WHERE property_id = ?1', q.get('property_id')) }));
+        return cors(json({ sos: (await all(env, 'SELECT * FROM sos_alerts WHERE property_id = ?1', q.get('property_id'))).map((s) => ({ ...s, acknowledged: boolField(s.acknowledged) })) }));
       if (method === 'POST' && path === '/sos') {
         const b = await body(req);
         const id = uuid();
         const inmate = await first(env, 'SELECT * FROM inmates WHERE id = ?1', b.inmate_id);
         await run(env, 'INSERT INTO sos_alerts (id, property_id, inmate_id, inmate_name, triggered_at, acknowledged) VALUES (?1,?2,?3,?4,?5,?6)',
           id, b.property_id, b.inmate_id, inmate?.name || '', nowIso(), 0);
-        return cors(json({ alert: await first(env, 'SELECT * FROM sos_alerts WHERE id = ?1', id) }, 201));
+        const alertRow = await first(env, 'SELECT * FROM sos_alerts WHERE id = ?1', id);
+        return cors(json({ alert: { ...alertRow, acknowledged: boolField(alertRow!.acknowledged) } }, 201));
       }
       const sosSeg = path.match(/^\/sos\/([^/]+)\/acknowledge$/);
       if (sosSeg && method === 'POST') {
         await run(env, 'UPDATE sos_alerts SET acknowledged = 1 WHERE id = ?1', sosSeg[1]);
-        return cors(json({ alert: await first(env, 'SELECT * FROM sos_alerts WHERE id = ?1', sosSeg[1]) }));
+        const ackRow = await first(env, 'SELECT * FROM sos_alerts WHERE id = ?1', sosSeg[1]);
+        return cors(json({ alert: { ...ackRow, acknowledged: boolField(ackRow!.acknowledged) } }));
       }
 
       // ── Documents ───────────────────────────────────────────────────────
