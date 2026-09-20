@@ -19,6 +19,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _email = TextEditingController();
   final _username = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
@@ -27,6 +28,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _email.dispose();
     _username.dispose();
     _password.dispose();
     super.dispose();
@@ -48,11 +50,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _snack(phoneErr);
       return;
     }
+    final emailErr = Validators.requiredEmailError(_email.text.trim());
+    if (emailErr != null) {
+      _snack(emailErr);
+      return;
+    }
     setState(() => _loading = true);
     final error = await ref.read(authControllerProvider.notifier).register(
           role: 'owner',
           name: _name.text.trim(),
           phone: _phone.text.trim(),
+          email: _email.text.trim(),
           username: _username.text.trim(),
           password: _password.text,
         );
@@ -95,6 +103,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     label: 'Phone (optional)',
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 14),
+                  GlassTextField(
+                    controller: _email,
+                    label: 'Email (for password reset)',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 14),
                   GlassTextField(

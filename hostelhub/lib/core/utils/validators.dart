@@ -31,4 +31,11 @@ class Validators {
     if (s.isEmpty) return 'Phone number is required';
     return _phoneRe.hasMatch(s) ? null : 'Enter a valid phone number';
   }
+
+  /// For required email fields (e.g. owner signup, so password reset works).
+  static String? requiredEmailError(String? v) {
+    final s = v?.trim() ?? '';
+    if (s.isEmpty) return 'Email is required';
+    return _emailRe.hasMatch(s) ? null : 'Enter a valid email address';
+  }
 }

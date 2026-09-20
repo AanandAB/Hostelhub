@@ -8,6 +8,7 @@ class User {
   final String? propertyId;
   final String name;
   final String phone;
+  final String email;
   final String username;
   final bool kycVerified;
 
@@ -17,6 +18,7 @@ class User {
     this.propertyId,
     required this.name,
     required this.phone,
+    this.email = '',
     required this.username,
     this.kycVerified = false,
   });
@@ -27,6 +29,7 @@ class User {
         propertyId: json['property_id'] as String?,
         name: json['name'] as String,
         phone: json['phone'] as String,
+        email: json['email'] as String? ?? '',
         username: json['username'] as String,
         kycVerified: json['kyc_verified'] as bool? ?? false,
       );
@@ -37,6 +40,7 @@ class User {
         'property_id': propertyId,
         'name': name,
         'phone': phone,
+        'email': email,
         'username': username,
         'kyc_verified': kycVerified,
       };

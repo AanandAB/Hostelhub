@@ -41,6 +41,7 @@ class AuthController extends Notifier<AuthState> {
     required String role,
     required String name,
     required String phone,
+    String email = '',
     required String username,
     required String password,
   }) async {
@@ -50,6 +51,7 @@ class AuthController extends Notifier<AuthState> {
         role: role == 'owner' ? UserRole.owner : UserRole.inmate,
         name: name,
         phone: phone,
+        email: email,
         username: username,
       );
       final created =
