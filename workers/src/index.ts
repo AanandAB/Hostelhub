@@ -194,7 +194,7 @@ function invoiceHtml(inv: Record<string, any>): string {
   const p = inv.property;
   const i = inv.inmate;
   const rows = (inv.line_items as any[])
-    .map((li) => `<tr><td style="padding:6px 0">${li.description}</td><td style="text-align:right">₹${li.amount}</td></tr>`)
+    .map((li) => `<tr><td style="padding:6px 0">${li.description}</td><td style="text-align:right">Rs. ${li.amount}</td></tr>`)
     .join('');
   const roomLine = i.room_no ? ` — Room ${i.room_no} / Bed ${i.bed_no}` : '';
   return `<div style="font-family:sans-serif;max-width:560px;margin:auto">`
@@ -204,8 +204,8 @@ function invoiceHtml(inv: Record<string, any>): string {
     + `<p><strong>Billed to:</strong> ${i.name}${roomLine}<br>${i.email}${i.phone ? ' · ' + i.phone : ''}</p>`
     + `<table width="100%" style="border-collapse:collapse;border-top:1px solid #ddd">`
     + `<tr><th align="left">Description</th><th align="right">Amount</th></tr>${rows}`
-    + `<tr style="border-top:1px solid #ddd"><td><strong>Total</strong></td><td align="right"><strong>₹${inv.total}</strong></td></tr>`
-    + `</table><p>Deposit held: ₹${inv.deposit_held}</p>`
+    + `<tr style="border-top:1px solid #ddd"><td><strong>Total</strong></td><td align="right"><strong>Rs. ${inv.total}</strong></td></tr>`
+    + `</table><p>Deposit held: Rs. ${inv.deposit_held}</p>`
     + `<p style="color:#666">Please pay by the due date. Thank you!</p></div>`;
 }
 
