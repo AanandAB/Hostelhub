@@ -237,7 +237,7 @@ export default {
           username, await hashPassword(b.password || ''), nowIso());
         const user = await first(env, 'SELECT * FROM users WHERE id = ?1', id);
         if (user && user.role === 'owner') {
-          await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', id, 'monthly', 'active', 1);
+          await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', id, 'monthly', 'active', 10);
         }
         return cors(json({ token: `local-token-${id}`, user: publicUser(user!) }, 201));
       }
@@ -294,7 +294,7 @@ export default {
 
       if (method === 'POST' && path === '/properties') {
         const b = await body(req);
-        const sub = (await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', b.owner_id)) || { status: 'active', property_limit: 1 };
+        const sub = (await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', b.owner_id)) || { status: 'active', property_limit: 10 };
         if (sub.status === 'expired') return cors(json({ error: 'Subscription expired. Please renew.' }, 403));
         const count = (await all(env, 'SELECT id FROM properties WHERE owner_id = ?1', b.owner_id)).length;
         if (count >= (sub.property_limit || 1))
@@ -694,11 +694,11 @@ export default {
         const ownerId = subSeg[1];
         const action = subSeg[2];
         if (method === 'GET') {
-          const sub = (await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', ownerId)) || { owner_id: ownerId, plan: 'monthly', status: 'active', property_limit: 1, expires_at: null };
+          const sub = (await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', ownerId)) || { owner_id: ownerId, plan: 'monthly', status: 'active', property_limit: 10, expires_at: null };
           return cors(json({ subscription: sub }));
         }
         if (method === 'POST' && action) {
-          await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', ownerId, 'monthly', 'active', 1);
+          await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', ownerId, 'monthly', 'active', 10);
           if (action === 'expire') await run(env, 'UPDATE subscriptions SET status = ?1 WHERE owner_id = ?2', 'expired', ownerId);
           if (action === 'renew') await run(env, 'UPDATE subscriptions SET status = ?1 WHERE owner_id = ?2', 'active', ownerId);
           if (action === 'upgrade') await run(env, 'UPDATE subscriptions SET property_limit = property_limit + 1 WHERE owner_id = ?1', ownerId);
