@@ -4,15 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../presentation/widgets/glass.dart';
+import '../../services/sounds/sound_service.dart';
 import '../onboarding/hostel_providers.dart';
 import 'ops_providers.dart';
 
-/// Owner: SOS alerts, with acknowledge.
-class SosScreen extends ConsumerWidget {
+/// Owner: SOS alerts, with acknowledge. Plays a high-alert sound when an
+/// unacknowledged alert is present.
+class SosScreen extends ConsumerStatefulWidget {
   const SosScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SosScreen> createState() => _SosScreenState();
+}
+
+class _SosScreenState extends ConsumerState<SosScreen> {
+  bool _alerted = false;
+
+  @override
+  Widget build(BuildContext context) {
     final propAsync = ref.watch(currentPropertyProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
@@ -30,7 +39,7 @@ class SosScreen extends ConsumerWidget {
                 ? Center(
                     child: Text('Set up your hostel first.',
                         style: textTheme.bodyMedium))
-                : _content(ref, prop.id, textTheme),
+                : _content(prop.id, textTheme),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, _) => const Center(child: Text('Error')),
           ),
@@ -39,8 +48,13 @@ class SosScreen extends ConsumerWidget {
     );
   }
 
-  Widget _content(WidgetRef ref, String propertyId, TextTheme textTheme) {
+  Widget _content(String propertyId, TextTheme textTheme) {
     final alerts = ref.watch(sosProvider(propertyId)).value ?? const [];
+    final hasUnacknowledged = alerts.any((a) => !a.acknowledged);
+    if (hasUnacknowledged && !_alerted) {
+      _alerted = true;
+      SoundService.playSosAlert();
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
       children: [

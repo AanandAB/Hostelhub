@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/notice.dart';
 import '../../presentation/widgets/glass.dart';
+import '../../services/sounds/sound_service.dart';
 import '../auth/auth_controller.dart';
 import 'ops_providers.dart';
 
@@ -132,6 +133,7 @@ class _PostNoticeDialogState extends ConsumerState<PostNoticeDialog> {
             pinned: _pinned,
           ));
       ref.invalidate(noticesProvider(widget.propertyId));
+      SoundService.playNotice();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

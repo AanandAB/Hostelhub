@@ -80,6 +80,14 @@ class HomeScreen extends ConsumerWidget {
                 .length;
             final openComplaints =
                 complaints.where((c) => c.status == 'open').length;
+            final thisMonthCollection = payments
+                .where((p) =>
+                    p.paidDate != null &&
+                    p.paidDate!.year == now.year &&
+                    p.paidDate!.month == now.month)
+                .fold<int>(0, (s, p) => s + p.amount);
+            final totalCollected =
+                payments.fold<int>(0, (s, p) => s + p.amount);
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final primary = isDark ? AppColors.primaryDark : AppColors.primary;
 
@@ -159,6 +167,28 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.calendar_month_rounded,
+                        label: 'This month',
+                        value: '₹$thisMonthCollection',
+                        accent: AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.savings_rounded,
+                        label: 'Total collected',
+                        value: '₹$totalCollected',
+                        accent: primary,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 GlassCard(
                   child: Column(
@@ -169,6 +199,43 @@ class HomeScreen extends ConsumerWidget {
                       Text(
                         'Onboard inmates, set rent, and run mess polls from the tabs below.',
                         style: textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                GlassCard(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          size: 30, color: AppColors.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('AI insights — coming soon',
+                                style: textTheme.titleMedium),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Smart analysis and suggestions for your hostel will appear here.',
+                              style: textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Soon',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.accent)),
                       ),
                     ],
                   ),
@@ -526,6 +593,11 @@ class MoreScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
+            _menuItem(context, Icons.privacy_tip_rounded, 'Privacy policy',
+                () => context.push('/privacy')),
+            _menuItem(context, Icons.description_rounded, 'Terms & Conditions',
+                () => context.push('/terms')),
+            const SizedBox(height: 16),
             GlassButton(
               label: 'Log out',
               icon: Icons.logout_rounded,
@@ -578,6 +650,8 @@ class MoreScreen extends ConsumerWidget {
           () => context.push('/settings')),
       _menuItem(context, Icons.add_business_rounded, 'Add property',
           () => context.push('/setup')),
+      _menuItem(context, Icons.workspace_premium_rounded, 'Upgrade plan',
+          () => context.push('/upgrade')),
     ];
   }
 

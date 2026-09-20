@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/user.dart';
 import '../../features/admin/admin_panel_screen.dart';
+import '../../features/shell/legal_screens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/forgot_password_screen.dart';
 import '../../features/auth/login_screen.dart';
@@ -111,6 +112,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/settings',
           builder: (_, _) => const PropertySettingsScreen()),
       GoRoute(path: '/bills', builder: (_, _) => const BillsScreen()),
+      GoRoute(
+          path: '/upgrade', builder: (_, _) => const UpgradeScreen()),
+      GoRoute(
+          path: '/privacy', builder: (_, _) => const PrivacyPolicyScreen()),
+      GoRoute(path: '/terms', builder: (_, _) => const TermsScreen()),
     ],
   );
 });
