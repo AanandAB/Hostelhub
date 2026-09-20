@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
 import '../../data/models/leave_record.dart';
@@ -36,6 +37,11 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
 
   Future<void> _logVisitor(String propertyId) async {
     if (_name.text.trim().isEmpty) return;
+    final phoneErr = Validators.phoneError(_phone.text.trim());
+    if (phoneErr != null) {
+      _snack(phoneErr);
+      return;
+    }
     String visitingName = '';
     if (_selectedInmateId != null) {
       final inmates =

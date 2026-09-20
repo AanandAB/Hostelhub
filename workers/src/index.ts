@@ -226,6 +226,37 @@ async function verifyAdmin(env: Env, token: string): Promise<boolean> {
   return (await hmacSha256Hex(env.JWT_SECRET || 'hostelhub-admin', `admin:${expStr}`)) === sig;
 }
 
+// ── JWT (HMAC-SHA256) session tokens ───────────────────────────────────────
+const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = (s: string) => atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+
+async function signToken(env: Env, userId: string): Promise<string> {
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(JSON.stringify({ uid: userId, exp: Math.floor(Date.now() / 1000) + 30 * 86400 }));
+  const sig = await hmacSha256Hex(env.JWT_SECRET || 'hostelhub-jwt', `${header}.${payload}`);
+  return `${header}.${payload}.${sig}`;
+}
+
+async function verifyToken(env: Env, token: string): Promise<string | null> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [header, payload, sig] = parts;
+  if ((await hmacSha256Hex(env.JWT_SECRET || 'hostelhub-jwt', `${header}.${payload}`)) !== sig) return null;
+  try {
+    const data = JSON.parse(unb64url(payload));
+    if (!data.uid || (data.exp && Date.now() / 1000 > data.exp)) return null;
+    return data.uid;
+  } catch { return null; }
+}
+
+async function authUser(env: Env, req: Request) {
+  const auth = req.headers.get('Authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const uid = await verifyToken(env, token);
+  if (!uid) return null;
+  return await first(env, 'SELECT * FROM users WHERE id = ?1', uid);
+}
+
 async function adminStats(env: Env) {
   const cnt = async (sql: string, ...p: any[]) => (await first(env, sql, ...p))?.c || 0;
   const owners = await all(env, "SELECT * FROM users WHERE role = 'owner' ORDER BY created_at DESC");
@@ -356,6 +387,8 @@ export default {
         const b = await body(req);
         const username = (b.username || '').trim();
         if (!username) return cors(json({ error: 'Username is required' }, 400));
+        if ((b.password || '').length < 8)
+          return cors(json({ error: 'Password must be at least 8 characters' }, 400));
         if (await first(env, 'SELECT id FROM users WHERE username = ?1', username))
           return cors(json({ error: 'Username already taken' }, 409));
         const id = uuid();
@@ -367,7 +400,7 @@ export default {
         if (user && user.role === 'owner') {
           await run(env, 'INSERT OR IGNORE INTO subscriptions (owner_id, plan, status, property_limit) VALUES (?1,?2,?3,?4)', id, 'monthly', 'active', 10);
         }
-        return cors(json({ token: `local-token-${id}`, user: publicUser(user!) }, 201));
+        return cors(json({ token: await signToken(env, id), user: publicUser(user!) }, 201));
       }
 
       if (method === 'POST' && path === '/auth/login') {
@@ -379,7 +412,7 @@ export default {
           const sub = (await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', user.id)) || { status: 'active' };
           if (sub.status === 'expired') return cors(json({ error: 'Subscription expired. Please renew.' }, 403));
         }
-        return cors(json({ token: `local-token-${user.id}`, user: publicUser(user) }));
+        return cors(json({ token: await signToken(env, user.id), user: publicUser(user) }));
       }
 
       if (method === 'POST' && path === '/auth/forgot-password') {
@@ -500,6 +533,18 @@ export default {
         await run(env, 'INSERT INTO users (id, role, property_id, name, phone, email, username, password, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)',
           id, 'inmate', b.property_id, b.name, b.phone || '', email, username, await hashPassword(password), nowIso());
         return cors(json({ inmate: inmateOut((await first(env, 'SELECT * FROM inmates WHERE id = ?1', id))!), password }, 201));
+      }
+
+      const credSeg = path.match(/^\/inmates\/([^/]+)\/credentials$/);
+      if (credSeg && method === 'POST') {
+        const inmate = await first(env, 'SELECT * FROM inmates WHERE id = ?1', credSeg[1]);
+        if (!inmate) return cors(json({ error: 'not found' }, 404));
+        const username = `${(inmate.name || 'user').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) || 'user'}${Math.floor(100 + Math.random() * 900)}`;
+        const password = `hh${Math.floor(100000 + Math.random() * 900000)}`;
+        await run(env, 'UPDATE users SET username = ?1, password = ?2 WHERE id = ?3 AND role = ?4',
+          username, await hashPassword(password), inmate.id, 'inmate');
+        await run(env, 'UPDATE inmates SET username = ?1 WHERE id = ?2', username, inmate.id);
+        return cors(json({ username, password }));
       }
 
       const inmateSeg = path.match(/^\/inmates\/([^/]+)(?:\/(room|invoice|invoice\/email))?$/);

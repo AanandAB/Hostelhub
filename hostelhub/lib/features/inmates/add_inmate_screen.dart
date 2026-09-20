@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
 import '../../data/models/property.dart';
@@ -45,6 +46,16 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
     final isRoomBased = prop.isHostelOrPg;
     if (_name.text.trim().isEmpty) {
       _snack('Enter a name');
+      return;
+    }
+    final phoneErr = Validators.requiredPhoneError(_phone.text.trim());
+    if (phoneErr != null) {
+      _snack(phoneErr);
+      return;
+    }
+    final emailErr = Validators.emailError(_email.text.trim());
+    if (emailErr != null) {
+      _snack(emailErr);
       return;
     }
     if (isRoomBased && _roomId == null) {

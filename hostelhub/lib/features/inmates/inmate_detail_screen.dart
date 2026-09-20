@@ -303,6 +303,13 @@ class InmateDetailScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          GlassButton(
+            label: 'Regenerate login credentials',
+            icon: Icons.key_rounded,
+            color: AppColors.warning.withValues(alpha: 0.85),
+            onPressed: () => _regenerateCredentials(context, ref, i),
+          ),
+          const SizedBox(height: 10),
           if (prop.isHostelOrPg) ...[
             GlassButton(
               label: 'Change room',
@@ -333,6 +340,49 @@ class InmateDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _regenerateCredentials(
+      BuildContext context, WidgetRef ref, Inmate i) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await ref
+          .read(backendProvider)
+          .inmates
+          .regenerateCredentials(i.id);
+      if (!context.mounted) return;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('New login credentials'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Username: ${res['username']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Password: ${res['password']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              const Text(
+                'Share these with the inmate. The old password no longer works.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not regenerate: $e')));
+    }
   }
 
   Future<void> _shareInvoice(BuildContext context, WidgetRef ref, Inmate i) async {

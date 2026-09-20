@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../presentation/widgets/glass.dart';
 import 'auth_controller.dart';
 
@@ -36,6 +37,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _username.text.trim().isEmpty ||
         _password.text.isEmpty) {
       _snack('Fill in name, username and password');
+      return;
+    }
+    if (_password.text.length < 8) {
+      _snack('Password must be at least 8 characters');
+      return;
+    }
+    final phoneErr = Validators.phoneError(_phone.text.trim());
+    if (phoneErr != null) {
+      _snack(phoneErr);
       return;
     }
     setState(() => _loading = true);

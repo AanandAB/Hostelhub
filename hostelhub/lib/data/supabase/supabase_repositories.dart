@@ -149,6 +149,11 @@ class SupabaseInmateRepository implements InmateRepository {
   Future<Map<String, dynamic>> emailInvoice(String inmateId, {String? month}) {
     throw UnimplementedError('Supabase backend not wired');
   }
+
+  @override
+  Future<Map<String, dynamic>> regenerateCredentials(String inmateId) {
+    throw UnimplementedError('Supabase backend not wired');
+  }
 }
 
 class SupabaseRentRepository implements RentRepository {

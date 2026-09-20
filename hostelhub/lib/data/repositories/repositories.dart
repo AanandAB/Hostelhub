@@ -78,6 +78,9 @@ abstract class InmateRepository {
 
   /// Email the invoice to the inmate's address; returns `{sent, to, invoice}`.
   Future<Map<String, dynamic>> emailInvoice(String inmateId, {String? month});
+
+  /// Regenerate the inmate's login credentials; returns `{username, password}`.
+  Future<Map<String, dynamic>> regenerateCredentials(String inmateId);
 }
 
 /// Rent plans + payments for the rent engine.

@@ -150,6 +150,11 @@ class FirebaseInmateRepository implements InmateRepository {
   Future<Map<String, dynamic>> emailInvoice(String inmateId, {String? month}) {
     throw UnimplementedError('Firebase backend not wired');
   }
+
+  @override
+  Future<Map<String, dynamic>> regenerateCredentials(String inmateId) {
+    throw UnimplementedError('Firebase backend not wired');
+  }
 }
 
 class FirebaseRentRepository implements RentRepository {

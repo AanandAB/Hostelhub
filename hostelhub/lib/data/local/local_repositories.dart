@@ -223,6 +223,11 @@ class LocalInmateRepository implements InmateRepository {
       'month': ?month,
     });
   }
+
+  @override
+  Future<Map<String, dynamic>> regenerateCredentials(String inmateId) async {
+    return await api.post('/inmates/$inmateId/credentials', {});
+  }
 }
 
 class LocalRentRepository implements RentRepository {
