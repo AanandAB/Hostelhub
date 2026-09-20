@@ -705,6 +705,7 @@ export default {
           }
         }
         await run(env, "UPDATE deposits SET status = 'refunded' WHERE inmate_id = ?1", c.inmate_id);
+        await run(env, "DELETE FROM users WHERE id = ?1 AND role = 'inmate'", c.inmate_id);
         return cors(json({ checkout: await first(env, 'SELECT * FROM checkouts WHERE id = ?1', checkoutSeg[1]) }));
       }
 

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
+import '../../data/models/payment.dart';
 import '../../data/models/property.dart';
 import '../../data/models/room.dart';
 import '../../presentation/widgets/glass.dart';
@@ -193,7 +194,7 @@ class InmateDetailScreen extends ConsumerWidget {
   Widget _empty(BuildContext context, String msg) =>
       Text(msg, style: Theme.of(context).textTheme.bodySmall);
 
-  Widget _paymentRow(BuildContext context, p) {
+  Widget _paymentRow(BuildContext context, Payment p) {
     final textTheme = Theme.of(context).textTheme;
     final statusColor = p.status.name == 'paid'
         ? AppColors.accent
