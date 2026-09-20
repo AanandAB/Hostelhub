@@ -142,10 +142,10 @@ CREATE TABLE IF NOT EXISTS visitors (
   property_id TEXT NOT NULL,
   name        TEXT NOT NULL,
   phone       TEXT NOT NULL DEFAULT '',
-  id_type     TEXT NOT NULL DEFAULT '',
-  id_number   TEXT NOT NULL DEFAULT '',
   purpose     TEXT NOT NULL DEFAULT '',
-  inmate_id   TEXT,
+  visiting_inmate_name TEXT NOT NULL DEFAULT '',
+  in_time     TEXT,
+  out_time    TEXT,
   created_at  TEXT
 );
 

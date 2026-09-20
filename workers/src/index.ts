@@ -498,7 +498,8 @@ export default {
       if (method === 'POST' && path === '/visitors') {
         const b = await body(req);
         const id = uuid();
-        await run(env, 'INSERT INTO visitors (id, property_id, name, phone, purpose, created_at) VALUES (?1,?2,?3,?4,?5,?6)', id, b.property_id, b.name, b.phone || '', b.purpose || '', nowIso());
+        await run(env, 'INSERT INTO visitors (id, property_id, name, phone, purpose, visiting_inmate_name, in_time, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)',
+          id, b.property_id, b.name, b.phone || '', b.purpose || '', b.visiting_inmate_name || '', nowIso(), nowIso());
         return cors(json({ visitor: await first(env, 'SELECT * FROM visitors WHERE id = ?1', id) }, 201));
       }
       const visitorSeg = path.match(/^\/visitors\/([^/]+)\/checkout$/);
@@ -575,6 +576,7 @@ export default {
             await run(env, 'UPDATE deposits SET deductions = ?1 WHERE id = ?2', JSON.stringify(deductions), d.id);
           }
         }
+        await run(env, "UPDATE deposits SET status = 'refunded' WHERE inmate_id = ?1", c.inmate_id);
         return cors(json({ checkout: await first(env, 'SELECT * FROM checkouts WHERE id = ?1', checkoutSeg[1]) }));
       }
 

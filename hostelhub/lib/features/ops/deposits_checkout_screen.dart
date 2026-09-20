@@ -46,7 +46,9 @@ class DepositsScreen extends ConsumerWidget {
   Widget _content(BuildContext context, WidgetRef ref, String propertyId,
       TextTheme textTheme) {
     final deposits =
-        ref.watch(depositsProvider(propertyId)).value ?? const <Deposit>[];
+        (ref.watch(depositsProvider(propertyId)).value ?? const <Deposit>[])
+            .where((d) => d.status != 'refunded')
+            .toList();
     final inmates = ref.watch(inmatesProvider(propertyId)).value ?? const [];
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -470,6 +472,39 @@ class _InitiateCheckoutDialogState
     }
   }
 
+  /// Shows the selected inmate's deposit (collected − deductions = refundable)
+  /// so the owner sees it at initiate time, not just at completion.
+  Widget _depositPreview(BuildContext context) {
+    final deposit = ref.watch(inmateDepositProvider(_inmateId ?? '')).value;
+    final textTheme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (deposit == null) {
+      return Text('No deposit recorded for this inmate.',
+          style: textTheme.bodySmall);
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppColors.glassDark : AppColors.glassLight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Deposit summary', style: textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Collected ₹${deposit.amountCollected} · '
+            'Deducted ₹${deposit.deductionsTotal} · '
+            'Refundable ₹${deposit.refundable}',
+            style: textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -486,6 +521,10 @@ class _InitiateCheckoutDialogState
                 inmates: widget.inmates,
                 selectedId: _inmateId,
                 onSelect: (id) => setState(() => _inmateId = id)),
+            if (_inmateId != null) ...[
+              const SizedBox(height: 12),
+              _depositPreview(context),
+            ],
             const SizedBox(height: 12),
             GlassTextField(
                 controller: _date,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
+import '../../data/models/inmate.dart';
 import '../../data/models/leave_record.dart';
 import '../../data/models/visitor.dart';
 import '../../presentation/widgets/glass.dart';
@@ -23,19 +24,29 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _purpose = TextEditingController();
-  final _visiting = TextEditingController();
+  String? _selectedInmateId;
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
     _purpose.dispose();
-    _visiting.dispose();
     super.dispose();
   }
 
   Future<void> _logVisitor(String propertyId) async {
     if (_name.text.trim().isEmpty) return;
+    String visitingName = '';
+    if (_selectedInmateId != null) {
+      final inmates =
+          ref.read(inmatesProvider(propertyId)).value ?? const <Inmate>[];
+      for (final i in inmates) {
+        if (i.id == _selectedInmateId) {
+          visitingName = i.name;
+          break;
+        }
+      }
+    }
     try {
       await ref.read(backendProvider).ops.createVisitor(Visitor(
             id: '',
@@ -43,13 +54,13 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
             name: _name.text.trim(),
             phone: _phone.text.trim(),
             purpose: _purpose.text.trim(),
-            visitingInmateName: _visiting.text.trim(),
+            visitingInmateName: visitingName,
           ));
       ref.invalidate(visitorsProvider(propertyId));
       _name.clear();
       _phone.clear();
       _purpose.clear();
-      _visiting.clear();
+      _selectedInmateId = null;
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       _snack('Could not log visitor: $e');
@@ -116,40 +127,55 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
   }
 
   void _showLogDialog(String propertyId) {
+    final inmates =
+        ref.read(inmatesProvider(propertyId)).value ?? const <Inmate>[];
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: GlassCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Log visitor', style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              GlassTextField(
-                  controller: _name,
-                  label: 'Visitor name',
-                  icon: Icons.person_outline),
-              const SizedBox(height: 12),
-              GlassTextField(
-                  controller: _phone,
-                  label: 'Phone',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 12),
-              GlassTextField(
-                  controller: _visiting,
-                  label: 'Visiting (inmate)',
-                  icon: Icons.apartment_rounded),
-              const SizedBox(height: 12),
-              GlassTextField(
-                  controller: _purpose,
-                  label: 'Purpose',
-                  icon: Icons.info_outline),
-              const SizedBox(height: 16),
-              GlassButton(
-                  label: 'Check in', onPressed: () => _logVisitor(propertyId)),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: GlassCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Log visitor', style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                GlassTextField(
+                    controller: _name,
+                    label: 'Visitor name',
+                    icon: Icons.person_outline),
+                const SizedBox(height: 12),
+                GlassTextField(
+                    controller: _phone,
+                    label: 'Phone',
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedInmateId ?? '',
+                  items: [
+                    const DropdownMenuItem(
+                        value: '', child: Text('General visitor')),
+                    for (final i in inmates)
+                      DropdownMenuItem(value: i.id, child: Text(i.name)),
+                  ],
+                  onChanged: (v) => setDialogState(() =>
+                      _selectedInmateId =
+                          (v == null || v.isEmpty) ? null : v),
+                  decoration:
+                      const InputDecoration(labelText: 'Visiting (inmate)'),
+                ),
+                const SizedBox(height: 12),
+                GlassTextField(
+                    controller: _purpose,
+                    label: 'Purpose',
+                    icon: Icons.info_outline),
+                const SizedBox(height: 16),
+                GlassButton(
+                    label: 'Check in',
+                    onPressed: () => _logVisitor(propertyId)),
+              ],
+            ),
           ),
         ),
       ),
