@@ -10,6 +10,7 @@
 export interface Env {
   DB: D1Database;
   JWT_SECRET?: string;
+  ADMIN_PASSWORD?: string;
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   RAZORPAY_WEBHOOK_SECRET?: string;
@@ -210,6 +211,133 @@ function invoiceHtml(inv: Record<string, any>): string {
 }
 
 const resetPage = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset password — HostelHub</title><style>body{font-family:system-ui,sans-serif;max-width:360px;margin:60px auto;padding:0 20px}input{width:100%;padding:12px;margin:8px 0;font-size:16px;box-sizing:border-box}button{width:100%;padding:12px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:8px}#msg{margin-top:12px;font-size:14px}</style></head><body><h2>Reset your password</h2><p>Choose a new password for your HostelHub account.</p><input type="password" id="p1" placeholder="New password" autocomplete="new-password"><input type="password" id="p2" placeholder="Confirm password" autocomplete="new-password"><button onclick="doReset()">Reset password</button><div id="msg"></div><script>const token=new URLSearchParams(location.search).get('token')||'';async function doReset(){const p1=document.getElementById('p1').value,p2=document.getElementById('p2').value,m=document.getElementById('msg');if(p1.length<6){m.textContent='Password must be at least 6 characters';return}if(p1!==p2){m.textContent='Passwords do not match';return}const r=await fetch('/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,password:p1})});const d=await r.json();m.textContent=d.ok?'Password reset! You can now log in.':(d.error||'Reset failed.')}</script></body></html>`;
+
+// ── Admin dashboard (separate web console) ────────────────────────────────
+async function adminToken(env: Env): Promise<string> {
+  const exp = Date.now() + 12 * 3600 * 1000;
+  const sig = await hmacSha256Hex(env.JWT_SECRET || 'hostelhub-admin', `admin:${exp}`);
+  return `${exp}.${sig}`;
+}
+
+async function verifyAdmin(env: Env, token: string): Promise<boolean> {
+  const [expStr, sig] = (token || '').split('.');
+  if (!expStr || !sig) return false;
+  if (Date.now() > parseInt(expStr, 10)) return false;
+  return (await hmacSha256Hex(env.JWT_SECRET || 'hostelhub-admin', `admin:${expStr}`)) === sig;
+}
+
+async function adminStats(env: Env) {
+  const cnt = async (sql: string, ...p: any[]) => (await first(env, sql, ...p))?.c || 0;
+  const owners = await all(env, "SELECT * FROM users WHERE role = 'owner' ORDER BY created_at DESC");
+  const perOwner = [];
+  for (const o of owners) {
+    const props = await all(env, 'SELECT * FROM properties WHERE owner_id = ?1', o.id);
+    let inmates = 0, openComplaints = 0, revenue = 0;
+    for (const p of props) {
+      inmates += await cnt('SELECT COUNT(*) c FROM inmates WHERE property_id = ?1', p.id);
+      openComplaints += await cnt("SELECT COUNT(*) c FROM complaints WHERE property_id = ?1 AND status = 'open'", p.id);
+      revenue += ((await first(env, "SELECT COALESCE(SUM(amount),0) c FROM payments WHERE property_id = ?1 AND status = 'paid'", p.id))?.c || 0);
+    }
+    const sub = await first(env, 'SELECT * FROM subscriptions WHERE owner_id = ?1', o.id);
+    perOwner.push({
+      id: o.id,
+      name: o.name || o.username,
+      phone: o.phone || '',
+      email: o.email || '',
+      username: o.username,
+      created_at: o.created_at,
+      properties: props.length,
+      inmates,
+      open_complaints: openComplaints,
+      revenue,
+      plan: sub?.plan || 'monthly',
+      status: sub?.status || 'active',
+      property_limit: sub?.property_limit ?? 10,
+    });
+  }
+  return {
+    totals: {
+      owners: owners.length,
+      inmates: await cnt('SELECT COUNT(*) c FROM inmates'),
+      properties: await cnt('SELECT COUNT(*) c FROM properties'),
+      rooms: await cnt('SELECT COUNT(*) c FROM rooms'),
+      payments: await cnt("SELECT COUNT(*) c FROM payments WHERE status = 'paid'"),
+      revenue: (await first(env, "SELECT COALESCE(SUM(amount),0) c FROM payments WHERE status = 'paid'"))?.c || 0,
+      open_complaints: await cnt("SELECT COUNT(*) c FROM complaints WHERE status = 'open'"),
+    },
+    owners: perOwner,
+  };
+}
+
+const adminPage = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HostelHub Admin</title><style>
+:root{--bg:#0d0d1a;--card:#171728;--line:#2a2a40;--text:#e8e8f0;--muted:#9a9ab0;--accent:#6366f1;--good:#34d399;--bad:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+h1{font-size:22px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card .k{color:var(--muted);font-size:12px}
+.card .v{font-size:26px;font-weight:700;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:10px 12px;font-size:13px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;background:#1a1a2e}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px}
+.active{background:rgba(52,211,153,.15);color:var(--good)}
+.expired{background:rgba(248,113,113,.15);color:var(--bad)}
+.login{max-width:340px;margin:10vh auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px}
+input{width:100%;padding:12px;margin:10px 0 16px;background:#1a1a2e;border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:15px}
+button{width:100%;padding:12px;background:var(--accent);border:0;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+button:hover{opacity:.9}
+.err{color:var(--bad);font-size:13px;margin-top:8px}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.logout{background:transparent;border:1px solid var(--line);color:var(--muted);width:auto;padding:8px 14px}
+</style></head><body>
+<div class="wrap" id="login" style="display:none"><div class="login"><h1>HostelHub Admin</h1><p class="sub">Sign in to view all owners and data.</p><input id="pw" type="password" placeholder="Admin password"><button onclick="login()">Sign in</button><div class="err" id="err"></div></div></div>
+<div class="wrap" id="dash" style="display:none">
+<div class="bar"><div><h1>HostelHub Admin</h1><div class="sub">All owners · live data</div></div><button class="logout" onclick="logout()">Log out</button></div>
+<div class="cards" id="cards"></div>
+<h2 style="font-size:16px;margin:8px 0 12px">Owners</h2>
+<table><thead><tr><th>Owner</th><th>Contact</th><th>Joined</th><th>Properties</th><th>Inmates</th><th>Revenue</th><th>Open complaints</th><th>Plan</th></tr></thead><tbody id="owners"></tbody></table>
+</div>
+<script>
+const TOKEN_KEY='hh_admin_token';
+function token(){return localStorage.getItem(TOKEN_KEY)||''}
+function showLogin(){document.getElementById('login').style.display='block';document.getElementById('dash').style.display='none'}
+function showDash(){document.getElementById('login').style.display='none';document.getElementById('dash').style.display='block'}
+async function login(){
+  const pw=document.getElementById('pw').value;
+  const r=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+  const d=await r.json();
+  if(d.token){localStorage.setItem(TOKEN_KEY,d.token);load();}
+  else document.getElementById('err').textContent=d.error||'Invalid password';
+}
+async function load(){
+  const t=token();
+  if(!t){showLogin();return;}
+  const r=await fetch('/admin/stats',{headers:{'Authorization':'Bearer '+t}});
+  if(r.status===401){localStorage.removeItem(TOKEN_KEY);showLogin();return;}
+  const d=await r.json();
+  showDash();
+  const f=n=>'\u20B9'+Number(n).toLocaleString('en-IN');
+  const tot=d.totals;
+  document.getElementById('cards').innerHTML=[
+    ['Owners',tot.owners],['Inmates',tot.inmates],['Properties',tot.properties],['Rooms',tot.rooms],
+    ['Payments (paid)',tot.payments],['Revenue',f(tot.revenue)],['Open complaints',tot.open_complaints]
+  ].map(([k,v])=>'<div class="card"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>').join('');
+  document.getElementById('owners').innerHTML=d.owners.map(function(o){return '<tr>'+
+    '<td><strong>'+o.name+'</strong><br><span style="color:var(--muted);font-size:11px">@'+o.username+'</span></td>'+
+    '<td>'+o.phone+'<br><span style="color:var(--muted);font-size:11px">'+o.email+'</span></td>'+
+    '<td>'+(o.created_at||'').slice(0,10)+'</td>'+
+    '<td>'+o.properties+'</td><td>'+o.inmates+'</td><td>'+f(o.revenue)+'</td><td>'+o.open_complaints+'</td>'+
+    '<td><span class="pill '+(o.status==='expired'?'expired':'active')+'">'+o.plan+' · '+o.status+'</span></td>'+
+  '</tr>'}).join('')||'<tr><td colspan="8" style="color:var(--muted)">No owners yet.</td></tr>';
+}
+function logout(){localStorage.removeItem(TOKEN_KEY);showLogin()}
+load();
+</script></body></html>`;
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -750,6 +878,24 @@ export default {
         // TODO(live): update payments/subscriptions from event.event
         // (payment.captured, payment.failed, mandate.activated, ...).
         return cors(json({ received: true }));
+      }
+
+      // ── Admin dashboard (separate web console) ──────────────────────────
+      if (method === 'GET' && path === '/admin')
+        return cors(new Response(adminPage, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }));
+
+      if (method === 'POST' && path === '/admin/login') {
+        const b = await body(req);
+        if (!env.ADMIN_PASSWORD || b.password !== env.ADMIN_PASSWORD)
+          return cors(json({ error: 'Invalid password' }, 401));
+        return cors(json({ token: await adminToken(env) }));
+      }
+
+      if (method === 'GET' && path === '/admin/stats') {
+        const auth = req.headers.get('Authorization') || '';
+        const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+        if (!(await verifyAdmin(env, token))) return cors(json({ error: 'unauthorized' }, 401));
+        return cors(json(await adminStats(env)));
       }
 
       return cors(json({ error: 'not found' }, 404));
