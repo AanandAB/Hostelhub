@@ -440,7 +440,7 @@ export default {
 
       // ── Polls ───────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/polls')
-        return cors(json({ polls: (await all(env, 'SELECT * FROM polls WHERE property_id = ?1', q.get('property_id'))).map((p) => ({ ...p, recurring: boolField(p.recurring) })) }));
+        return cors(json({ polls: (await all(env, 'SELECT * FROM polls WHERE property_id = ?1', q.get('property_id'))).map((p) => ({ ...p, recurring: boolField(p.recurring), options: parseJson(p.options, ['Yes', 'No']) })) }));
       if (method === 'POST' && path === '/polls') {
         const b = await body(req);
         const id = uuid();
