@@ -45,6 +45,11 @@ class LocalApiClient {
     return _decode(res);
   }
 
+  Future<Map<String, dynamic>> delete(String path) async {
+    final res = await _client.delete(_uri(path));
+    return _decode(res);
+  }
+
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   Map<String, dynamic> _decode(http.Response res) {

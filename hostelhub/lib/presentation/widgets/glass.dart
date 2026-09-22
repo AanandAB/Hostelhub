@@ -169,6 +169,7 @@ class GlassButton extends StatelessWidget {
             },
       child: Container(
         height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [primary, primary.withValues(alpha: 0.82)],

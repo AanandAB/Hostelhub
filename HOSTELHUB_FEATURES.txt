@@ -1,0 +1,186 @@
+════════════════════════════════════════════════════════════════════
+ HOSTELHUB — COMPLETE FEATURES & PRODUCT DOCUMENT
+ Last updated: September 2026
+════════════════════════════════════════════════════════════════════
+
+1. WHAT HOSTELHUB IS
+--------------------
+HostelHub is a two-sided property-management app for hostel / PG owners
+and their inmates (wards). It automates rent collection (with UPI Autopay
+via Razorpay), mess food polling, and day-to-day operations, and gives
+owners a real-time dashboard. Owners sell it as a subscription SaaS to
+other hostel owners.
+
+Platforms:
+  - Flutter mobile app (Android APK now; iOS-ready) — owners + inmates.
+  - Cloudflare Workers + D1 backend (serverless, edge).
+  - Separate admin web dashboard (Worker-hosted) for the SaaS operator.
+
+2. ROLES
+--------
+OWNER / MANAGER:
+  - Signs up with name, phone, EMAIL, username, password.
+  - Creates properties (hostel, PG, rental house, office).
+  - Onboards inmates, collects rent, runs the property.
+
+INMATE / WARD:
+  - No self signup. Owner onboards them and hands over auto-generated
+    username + password.
+  - Sees only their own rent, complaints, leave, notices, and polls.
+  - Account is auto-deleted when they check out.
+
+3. ONBOARDING
+-------------
+  - Owner-only registration (inmates cannot sign up).
+  - Property types: hostel, PG (room/bed based) OR house / office
+    (rent-per-property, no rooms).
+  - Owner toggles which features inmates can see (feature gating).
+  - Add rooms + capacity; add inmates with room/bed, rent, due day,
+    phone, email. Credentials auto-generated and shown to the owner.
+
+4. RENT & PAYMENTS
+------------------
+  - Per-inmate rent plan (amount, due day, grace days, late fee).
+  - Inmate pays rent (mock gateway now; Razorpay when live).
+  - Payment history per inmate + per property.
+  - Today's collection, this-month collection, total collected,
+    pending-dues count on the owner dashboard.
+  - Razorpay integration (scaffolded + verified in test mode):
+      * /razorpay/order        — create orders (works in test mode)
+      * /razorpay/autopay/link — UPI Autopay e-mandate (needs LIVE acct)
+      * /razorpay/webhook      — signature-verified events
+  - Model B (Route) sub-merchant architecture so rent settles directly
+    to each owner's bank account, with platform commission auto-deducted.
+
+5. MESS & POLLS
+---------------
+  - Owner creates food polls (meal type, date, options, recurring).
+  - Inmates respond; owner sees response counts.
+  - Mess charges per property (monthly / per-meal).
+
+6. COMPLAINTS
+------------
+  - Inmates raise complaints (category + description).
+  - Owner sees all complaints, advances status (open → in_progress →
+    resolved).
+
+7. NOTICES
+---------
+  - Owner posts notices (general / mess / maintenance / emergency).
+  - Inmates see notices. Notice chime sound on posting.
+
+8. VISITORS & LEAVE
+-------------------
+  - Owner logs visitors (name, phone, purpose) with an inmate dropdown.
+  - Check-in / check-out tracking (who's inside now).
+  - Inmates mark leave (going home) with dates + reason.
+
+9. DEPOSITS & CHECKOUT
+----------------------
+  - Record security deposit per inmate (amount collected).
+  - Itemized deductions (reason + amount).
+  - Auto-filled refund summary on checkout (collected − deductions).
+  - On checkout completion: deposit marked "refunded" (removed from the
+    active deposits list), inmate's login account auto-deleted, inmate
+    history retained.
+
+10. CHAT
+-------
+   - Owner ↔ inmate messaging per thread.
+
+11. EXPENSES & P&L
+------------------
+   - Owner logs expenses; profit-and-loss summary.
+
+12. RATINGS
+----------
+   - Owner rates inmates (and vice-versa) with star ratings + notes.
+
+13. SOS ALERTS
+--------------
+   - Inmate triggers SOS; owner sees alert with high-alert sound on
+     unacknowledged alerts + acknowledge.
+
+14. DOCUMENTS (VAULT)
+---------------------
+   - Hostel documents (agreements, rules) + inmate KYC docs.
+   - File upload (file picker), edit (rename/type), delete.
+
+15. INVOICES
+------------
+   - Structured TAX INVOICE per inmate (PDF) with line items, total,
+     deposit held, due date.
+   - Email invoice + WhatsApp invoice (redirect to wa.me) + share PDF.
+   - "Rs." used in PDFs/emails (rupee glyph not in built-in PDF font).
+
+16. BILLS
+---------
+   - Whole-property or split-per-inmate bill → shareable PDF.
+
+17. OWNER DASHBOARD (home)
+--------------------------
+   - Inmates count, occupancy %, rooms, open complaints.
+   - Today's collection, this month, total collected, pending dues.
+   - Property switcher (multiple properties).
+   - AI insights "coming soon" placeholder.
+
+18. AUTH & SECURITY
+-------------------
+   - PBKDF2-SHA256 hashed passwords (100k iterations).
+   - HMAC-signed JWT session tokens (30-day expiry).
+   - Password reset via email link (15-min, single-use token).
+   - Regenerate inmate credentials (owner action).
+   - Email + phone validation on all input forms.
+   - Min 8-char password.
+   - Email transport: Resend (needs RESEND_API_KEY secret) with console
+     LOG fallback.
+
+19. ADMIN WEB DASHBOARD (separate)
+----------------------------------
+   - URL: https://hostelhub.theblacklightstudio.workers.dev/admin
+   - Password login (ADMIN_PASSWORD secret).
+   - Live totals: owners, inmates, properties, rooms, payments, revenue,
+     open complaints.
+   - Per-owner table: contact, joined, properties, inmates, revenue,
+     complaints, plan/status.
+
+20. SUBSCRIPTIONS & PRICING
+---------------------------
+   - Plans: Rs. 599/month, Rs. 5,999/year, + Rs. 199/property.
+   - Free tier currently allows 10 properties (temporary until the
+     payment-gated upgrade flow goes live).
+   - Upgrade plan screen in-app.
+
+21. NOTIFICATION SOUNDS
+-----------------------
+   - SOS high-alert triple beep + notice chime (bundled WAVs, no network).
+
+22. TECH STACK
+--------------
+   - Flutter (Riverpod, GoRouter, glassmorphism UI).
+   - Cloudflare Workers + D1 (SQLite) — 22 tables, tenant-scoped by
+     property_id / owner_id.
+   - Razorpay (payments), Resend (email).
+   - Backend kind: cloudflare (dart-define BACKEND=cloudflare,
+     CLOUDFLARE_BASE_URL).
+
+23. BUILD COMMAND (APK)
+-----------------------
+   flutter build apk --release \
+     --dart-define=BACKEND=cloudflare \
+     --dart-define=CLOUDFLARE_BASE_URL=https://hostelhub.theblacklightstudio.workers.dev
+
+24. CURRENTLY BLOCKED / PENDING
+-------------------------------
+   - Real Razorpay payments in-app + UPI Autopay + Route (Model B):
+     needs a LIVE Razorpay account with UPI Autopay + Route enabled.
+   - Payment-gated signup ("only those who paid can sign up"): blocked on
+     live payments.
+   - Resend email delivery: needs a RESEND_API_KEY secret.
+   - Auth0 social login (optional; native signed-JWT auth is in place).
+   - Real file storage for documents: needs Cloudflare R2 (metadata +
+     file name stored in D1 today).
+   - Push notifications for SOS/notices (local sounds implemented;
+     real-time push not yet).
+
+════════════════════════════════════════════════════════════════════

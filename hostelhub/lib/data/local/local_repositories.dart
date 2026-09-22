@@ -521,6 +521,21 @@ class LocalOpsRepository implements OpsRepository {
     final json = await api.post('/documents', document.toJson());
     return Document.fromJson(json['document'] as Map<String, dynamic>);
   }
+
+  @override
+  Future<Document> updateDocument(String documentId,
+      {String? name, String? type}) async {
+    final json = await api.patch('/documents/$documentId', {
+      'name': ?name,
+      'type': ?type,
+    });
+    return Document.fromJson(json['document'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> deleteDocument(String documentId) async {
+    await api.delete('/documents/$documentId');
+  }
 }
 
 class LocalAdminRepository implements AdminRepository {

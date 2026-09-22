@@ -165,6 +165,9 @@ abstract class OpsRepository {
   // ── Document vault ─────────────────────────────────────────────────────
   Future<List<Document>> listDocuments(String ownerType, String ownerId);
   Future<Document> createDocument(Document document);
+  Future<Document> updateDocument(String documentId,
+      {String? name, String? type});
+  Future<void> deleteDocument(String documentId);
 }
 
 /// Super-admin (SaaS operator) surface: subscription pricing + client overrides.

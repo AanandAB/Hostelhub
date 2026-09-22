@@ -159,6 +159,8 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedInmateId ?? '',
+                  isExpanded: true,
+                  menuMaxHeight: 320,
                   items: [
                     const DropdownMenuItem(
                         value: '', child: Text('General visitor')),
@@ -168,14 +170,20 @@ class _VisitorsScreenState extends ConsumerState<VisitorsScreen> {
                   onChanged: (v) => setDialogState(() =>
                       _selectedInmateId =
                           (v == null || v.isEmpty) ? null : v),
-                  decoration:
-                      const InputDecoration(labelText: 'Visiting (inmate)'),
+                  decoration: InputDecoration(
+                    labelText: 'Visiting (inmate)',
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 GlassTextField(
                     controller: _purpose,
                     label: 'Purpose',
-                    icon: Icons.info_outline),
+                    icon: Icons.notes_outlined),
                 const SizedBox(height: 16),
                 GlassButton(
                     label: 'Check in',

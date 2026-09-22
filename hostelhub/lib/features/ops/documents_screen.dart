@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -59,10 +60,12 @@ class DocumentsScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
       children: [
-        _section(context, 'Hostel documents', hostelDocs, Icons.folder_rounded),
+        _section(context, ref, 'Hostel documents', hostelDocs,
+            Icons.folder_rounded, 'hostel', propertyId),
         if (!isOwner) ...[
           const SizedBox(height: 20),
-          _section(context, 'My documents', ownDocs, Icons.person_rounded),
+          _section(context, ref, 'My documents', ownDocs, Icons.person_rounded,
+              'inmate', inmateId),
         ],
         const SizedBox(height: 16),
         GlassButton(
@@ -76,8 +79,8 @@ class DocumentsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _section(
-      BuildContext context, String title, List<Document> docs, IconData icon) {
+  Widget _section(BuildContext context, WidgetRef ref, String title,
+      List<Document> docs, IconData icon, String ownerType, String ownerId) {
     final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,6 +115,7 @@ class DocumentsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(d.name, style: textTheme.bodyLarge),
+                          Text(d.type, style: textTheme.bodySmall),
                           if (d.uploadedAt != null)
                             Text(
                               'Uploaded ${d.uploadedAt!.substring(0, 10)}',
@@ -120,16 +124,17 @@ class DocumentsScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(d.type,
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.primary)),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded,
+                          size: 20, color: AppColors.accent),
+                      onPressed: () => _editDialog(
+                          context, ref, d, ownerType, ownerId),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 20, color: AppColors.danger),
+                      onPressed: () => _deleteDoc(
+                          context, ref, d, ownerType, ownerId),
                     ),
                   ],
                 ),
@@ -139,16 +144,38 @@ class DocumentsScreen extends ConsumerWidget {
     );
   }
 
-  void _addDialog(BuildContext context, WidgetRef ref, String ownerType,
-      String ownerId) {
-    final controller = TextEditingController();
-    String type = _docTypes.first;
+  Future<void> _deleteDoc(BuildContext context, WidgetRef ref, Document d,
+      String ownerType, String ownerId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete document?'),
+        content: Text('Delete "${d.name}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(backendProvider).ops.deleteDocument(d.id);
+    ref.invalidate(documentsProvider((ownerType, ownerId)));
+  }
+
+  void _editDialog(BuildContext context, WidgetRef ref, Document d,
+      String ownerType, String ownerId) {
+    final controller = TextEditingController(text: d.name);
+    String type = d.type;
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           backgroundColor: Theme.of(context).colorScheme.surface,
-          title: const Text('Add document'),
+          title: const Text('Edit document'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -180,12 +207,86 @@ class DocumentsScreen extends ConsumerWidget {
               onPressed: () async {
                 final name = controller.text.trim();
                 if (name.isEmpty) return;
+                await ref.read(backendProvider).ops.updateDocument(d.id,
+                    name: name, type: type);
+                ref.invalidate(documentsProvider((ownerType, ownerId)));
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addDialog(BuildContext context, WidgetRef ref, String ownerType,
+      String ownerId) {
+    final controller = TextEditingController();
+    String type = _docTypes.first;
+    String? filePath;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: const Text('Add document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Document name'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.upload_file_rounded),
+                label: Text(
+                    filePath == null ? 'Pick file (optional)' : 'File selected'),
+                onPressed: () async {
+                  final result = await FilePicker.platform.pickFiles();
+                  if (result != null && result.files.isNotEmpty) {
+                    final f = result.files.first;
+                    setState(() {
+                      filePath = f.path;
+                      if (controller.text.trim().isEmpty) {
+                        controller.text = f.name;
+                      }
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final t in _docTypes)
+                    ChoiceChip(
+                      label: Text(t),
+                      selected: type == t,
+                      onSelected: (_) => setState(() => type = t),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
                 await ref.read(backendProvider).ops.createDocument(Document(
                       id: '',
                       ownerType: ownerType,
                       ownerId: ownerId,
                       name: name,
                       type: type,
+                      fileUrl: filePath,
                     ));
                 ref.invalidate(documentsProvider((ownerType, ownerId)));
                 if (dialogContext.mounted) Navigator.pop(dialogContext);

@@ -264,6 +264,12 @@ class SupabaseOpsRepository implements OpsRepository {
       _n();
   @override
   Future<Document> createDocument(Document document) => _n();
+  @override
+  Future<Document> updateDocument(String documentId,
+          {String? name, String? type}) =>
+      _n();
+  @override
+  Future<void> deleteDocument(String documentId) => _n();
 }
 
 class SupabaseAdminRepository implements AdminRepository {

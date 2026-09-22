@@ -168,7 +168,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text(r.$1),
-                      pw.Text('₹${r.$2}'),
+                      pw.Text('Rs. ${r.$2}'),
                     ],
                   ),
                 )
@@ -180,7 +180,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                 children: [
                   pw.Text('Total',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Text('₹$total',
+                  pw.Text('Rs. $total',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 ],
               ),

@@ -293,6 +293,7 @@ class _RecordDepositDialog extends ConsumerStatefulWidget {
 class _RecordDepositDialogState extends ConsumerState<_RecordDepositDialog> {
   final _amount = TextEditingController();
   String? _inmateId;
+  String? _error;
   bool _busy = false;
 
   @override
@@ -303,7 +304,14 @@ class _RecordDepositDialogState extends ConsumerState<_RecordDepositDialog> {
 
   Future<void> _save() async {
     final amount = int.tryParse(_amount.text.trim()) ?? 0;
-    if (_inmateId == null || amount <= 0) return;
+    if (_inmateId == null) {
+      setState(() => _error = 'Select an inmate first');
+      return;
+    }
+    if (amount <= 0) {
+      setState(() => _error = 'Enter a valid amount');
+      return;
+    }
     setState(() => _busy = true);
     try {
       await ref.read(backendProvider).ops.createDeposit(Deposit(
@@ -338,13 +346,30 @@ class _RecordDepositDialogState extends ConsumerState<_RecordDepositDialog> {
             InmatePicker(
                 inmates: widget.inmates,
                 selectedId: _inmateId,
-                onSelect: (id) => setState(() => _inmateId = id)),
+                onSelect: (id) => setState(() {
+                      _inmateId = id;
+                      _error = null;
+                    })),
+            if (_error == null)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text('Tap an inmate to select them',
+                    style: TextStyle(fontSize: 12, color: Colors.white70)),
+              ),
             const SizedBox(height: 12),
             GlassTextField(
                 controller: _amount,
                 label: 'Amount (₹)',
                 icon: Icons.currency_rupee,
                 keyboardType: TextInputType.number),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!,
+                  style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ],
             const SizedBox(height: 16),
             GlassButton(label: 'Save', loading: _busy, onPressed: _save),
           ],

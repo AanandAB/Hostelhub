@@ -11,6 +11,7 @@ export interface Env {
   DB: D1Database;
   JWT_SECRET?: string;
   ADMIN_PASSWORD?: string;
+  RESEND_API_KEY?: string;
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   RAZORPAY_WEBHOOK_SECRET?: string;
@@ -110,9 +111,21 @@ function inmateOut(i: Record<string, any>) {
 }
 
 /// LOG email transport — console only. Swap body for Resend/SendGrid later.
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(env: Env, to: string, subject: string, html: string) {
   console.log(`[email] to=${to} subject="${subject}"`);
-  console.log(html);
+  if (env.RESEND_API_KEY) {
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'HostelHub <onboarding@resend.dev>', to: [to], subject, html }),
+      });
+    } catch (e) {
+      console.log('[email] resend error:', e);
+    }
+  } else {
+    console.log(html);
+  }
 }
 
 // ── Razorpay client ────────────────────────────────────────────────────────
@@ -424,7 +437,7 @@ export default {
           await run(env, 'INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?1,?2,?3)',
             await sha256hex(token), user.id, new Date(Date.now() + 15 * 60000).toISOString());
           const link = `${new URL(req.url).origin}/reset?token=${token}`;
-          await sendEmail(email, 'Reset your HostelHub password',
+          await sendEmail(env, email, 'Reset your HostelHub password',
             `<p>Hi ${user.name}, tap the link below to reset your password (15 min):</p><p><a href="${link}">${link}</a></p>`);
         }
         return cors(json({ ok: true }));
@@ -584,7 +597,7 @@ export default {
           if (!inmate.email) return cors(json({ error: 'This inmate has no email on file' }, 400));
           const b = await body(req);
           const inv = await buildInvoice(env, inmate, b.month);
-          await sendEmail(inmate.email, `Invoice ${inv.invoice_no}`, invoiceHtml(inv));
+          await sendEmail(env, inmate.email, `Invoice ${inv.invoice_no}`, invoiceHtml(inv));
           return cors(json({ sent: true, to: inmate.email, invoice: inv }));
         }
       }
@@ -830,6 +843,19 @@ export default {
         await run(env, 'INSERT INTO documents (id, owner_type, owner_id, name, type, file_url, uploaded_at) VALUES (?1,?2,?3,?4,?5,?6,?7)',
           id, b.owner_type, b.owner_id, b.name, b.type || 'other', b.file_url ?? null, nowIso());
         return cors(json({ document: await first(env, 'SELECT * FROM documents WHERE id = ?1', id) }, 201));
+      }
+      const docSeg = path.match(/^\/documents\/([^/]+)$/);
+      if (docSeg) {
+        const id = docSeg[1];
+        if (method === 'PATCH') {
+          const b = await body(req);
+          await run(env, 'UPDATE documents SET name = COALESCE(?1, name), type = COALESCE(?2, type) WHERE id = ?3', b.name ?? null, b.type ?? null, id);
+          return cors(json({ document: await first(env, 'SELECT * FROM documents WHERE id = ?1', id) }));
+        }
+        if (method === 'DELETE') {
+          await run(env, 'DELETE FROM documents WHERE id = ?1', id);
+          return cors(json({ ok: true }));
+        }
       }
 
       // ── Admin: owners, subscriptions, pricing ───────────────────────────
