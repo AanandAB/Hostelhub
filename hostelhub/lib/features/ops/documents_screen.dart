@@ -245,13 +245,12 @@ class DocumentsScreen extends ConsumerWidget {
                 label: Text(
                     filePath == null ? 'Pick file (optional)' : 'File selected'),
                 onPressed: () async {
-                  final result = await FilePicker.platform.pickFiles();
-                  if (result != null && result.files.isNotEmpty) {
-                    final f = result.files.first;
+                  final file = await FilePicker.pickFile();
+                  if (file != null) {
                     setState(() {
-                      filePath = f.path;
+                      filePath = file.path;
                       if (controller.text.trim().isEmpty) {
-                        controller.text = f.name;
+                        controller.text = file.name;
                       }
                     });
                   }
