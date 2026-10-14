@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS inmates (
   due_day       INTEGER NOT NULL DEFAULT 1,
   join_date     TEXT,
   checkout_date TEXT,
-  kyc_verified  INTEGER NOT NULL DEFAULT 0
+  kyc_verified  INTEGER NOT NULL DEFAULT 0,
+  autopay_enabled INTEGER NOT NULL DEFAULT 0  -- UPI Autopay auto-debit (owner opt-out)
 );
 
 -- ── Payments ─────────────────────────────────────────────────────────────
