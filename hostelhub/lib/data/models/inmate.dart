@@ -14,6 +14,7 @@ class Inmate {
   final int dueDay; // day of month rent is due (1-31)
   final String? joinDate;
   final String? checkoutDate; // set once the inmate checks out (stay history)
+  final bool autopayEnabled; // UPI Autopay auto-debit for this inmate
 
   const Inmate({
     required this.id,
@@ -29,6 +30,7 @@ class Inmate {
     this.dueDay = 1,
     this.joinDate,
     this.checkoutDate,
+    this.autopayEnabled = false,
   });
 
   factory Inmate.fromJson(Map<String, dynamic> json) => Inmate(
@@ -45,6 +47,7 @@ class Inmate {
         dueDay: json['due_day'] as int? ?? 1,
         joinDate: json['join_date'] as String?,
         checkoutDate: json['checkout_date'] as String?,
+        autopayEnabled: json['autopay_enabled'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -61,5 +64,6 @@ class Inmate {
         'due_day': dueDay,
         'join_date': joinDate,
         'checkout_date': checkoutDate,
+        'autopay_enabled': autopayEnabled,
       };
 }

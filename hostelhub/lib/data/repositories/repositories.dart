@@ -81,6 +81,9 @@ abstract class InmateRepository {
 
   /// Regenerate the inmate's login credentials; returns `{username, password}`.
   Future<Map<String, dynamic>> regenerateCredentials(String inmateId);
+
+  /// Enable/disable UPI Autopay auto-debit for this inmate.
+  Future<Inmate> setAutopay(String inmateId, bool enabled);
 }
 
 /// Rent plans + payments for the rent engine.

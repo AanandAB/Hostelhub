@@ -1,0 +1,1 @@
+ALTER TABLE inmates ADD COLUMN autopay_enabled INTEGER DEFAULT 0;

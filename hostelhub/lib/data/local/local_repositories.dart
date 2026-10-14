@@ -228,6 +228,13 @@ class LocalInmateRepository implements InmateRepository {
   Future<Map<String, dynamic>> regenerateCredentials(String inmateId) async {
     return await api.post('/inmates/$inmateId/credentials', {});
   }
+
+  @override
+  Future<Inmate> setAutopay(String inmateId, bool enabled) async {
+    final json =
+        await api.patch('/inmates/$inmateId/autopay', {'enabled': enabled});
+    return Inmate.fromJson(json['inmate'] as Map<String, dynamic>);
+  }
 }
 
 class LocalRentRepository implements RentRepository {

@@ -107,7 +107,7 @@ function publicUser(u: Record<string, any>) {
 }
 
 function inmateOut(i: Record<string, any>) {
-  return { ...i, kyc_verified: boolField(i.kyc_verified) };
+  return { ...i, kyc_verified: boolField(i.kyc_verified), autopay_enabled: boolField(i.autopay_enabled) };
 }
 
 /// LOG email transport — console only. Swap body for Resend/SendGrid later.
@@ -541,11 +541,18 @@ export default {
         const password = `hh${Math.floor(100000 + Math.random() * 900000)}`;
         const email = b.email || '';
         await run(env,
-          'INSERT INTO inmates (id, property_id, name, phone, email, username, room_id, room_no, bed_no, rent_amount, due_day, join_date) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)',
-          id, b.property_id, b.name, b.phone || '', email, username, roomId, roomNo, bedNo, b.rent_amount || 0, b.due_day || 1, b.join_date ?? null);
+          'INSERT INTO inmates (id, property_id, name, phone, email, username, room_id, room_no, bed_no, rent_amount, due_day, join_date, autopay_enabled) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)',
+          id, b.property_id, b.name, b.phone || '', email, username, roomId, roomNo, bedNo, b.rent_amount || 0, b.due_day || 1, b.join_date ?? null, b.autopay_enabled ? 1 : 0);
         await run(env, 'INSERT INTO users (id, role, property_id, name, phone, email, username, password, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)',
           id, 'inmate', b.property_id, b.name, b.phone || '', email, username, await hashPassword(password), nowIso());
         return cors(json({ inmate: inmateOut((await first(env, 'SELECT * FROM inmates WHERE id = ?1', id))!), password }, 201));
+      }
+
+      const autopaySeg = path.match(/^\/inmates\/([^/]+)\/autopay$/);
+      if (autopaySeg && method === 'PATCH') {
+        const b = await body(req);
+        await run(env, 'UPDATE inmates SET autopay_enabled = ?1 WHERE id = ?2', b.enabled ? 1 : 0, autopaySeg[1]);
+        return cors(json({ inmate: inmateOut((await first(env, 'SELECT * FROM inmates WHERE id = ?1', autopaySeg[1]))!) }));
       }
 
       const credSeg = path.match(/^\/inmates\/([^/]+)\/credentials$/);
@@ -605,7 +612,7 @@ export default {
       // ── Rent plans ──────────────────────────────────────────────────────
       if (method === 'GET' && path === '/rent-plans') {
         const inmate = await first(env, 'SELECT * FROM inmates WHERE id = ?1', q.get('inmate_id'));
-        return cors(json({ rent_plan: inmate ? { id: `rp-${inmate.id}`, inmate_id: inmate.id, amount: inmate.rent_amount || 0, due_day: inmate.due_day || 1, grace_days: 3, late_fee_rule: 'flat:100', autopay_enabled: false, mandate_id: null } : null }));
+        return cors(json({ rent_plan: inmate ? { id: `rp-${inmate.id}`, inmate_id: inmate.id, amount: inmate.rent_amount || 0, due_day: inmate.due_day || 1, grace_days: 3, late_fee_rule: 'flat:100', autopay_enabled: boolField(inmate.autopay_enabled), mandate_id: null } : null }));
       }
 
       // ── Payments ────────────────────────────────────────────────────────

@@ -78,6 +78,8 @@ class InmateDetailScreen extends ConsumerWidget {
         _actionsCard(context, ref, inmate, prop, textTheme),
         const SizedBox(height: 12),
         _stayCard(context, inmate, textTheme),
+        const SizedBox(height: 12),
+        _autopayCard(context, ref, inmate, prop, textTheme),
         if (deposit != null) ...[
           const SizedBox(height: 12),
           GlassCard(
@@ -179,6 +181,36 @@ class InmateDetailScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           _row(context, 'Joined', i.joinDate ?? '—'),
           _row(context, 'Checked out', i.checkoutDate ?? '—'),
+        ],
+      ),
+    );
+  }
+
+  Widget _autopayCard(BuildContext context, WidgetRef ref, Inmate i,
+      Property prop, TextTheme textTheme) {
+    return GlassCard(
+      child: Row(
+        children: [
+          const Icon(Icons.autorenew_rounded,
+              size: 20, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Auto debit (UPI Autopay)', style: textTheme.titleMedium),
+                Text('Auto-collect rent each month from this inmate.',
+                    style: textTheme.bodySmall),
+              ],
+            ),
+          ),
+          Switch(
+            value: i.autopayEnabled,
+            onChanged: (v) async {
+              await ref.read(backendProvider).inmates.setAutopay(i.id, v);
+              ref.invalidate(inmatesProvider(prop.id));
+            },
+          ),
         ],
       ),
     );
