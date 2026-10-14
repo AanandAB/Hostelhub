@@ -12,6 +12,10 @@ export interface Env {
   JWT_SECRET?: string;
   ADMIN_PASSWORD?: string;
   RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
+  MAILCHANNELS_DKIM_DOMAIN?: string;
+  MAILCHANNELS_DKIM_SELECTOR?: string;
+  MAILCHANNELS_DKIM_PRIVATE_KEY?: string;
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   RAZORPAY_WEBHOOK_SECRET?: string;
@@ -113,7 +117,34 @@ function inmateOut(i: Record<string, any>) {
 /// LOG email transport — console only. Swap body for Resend/SendGrid later.
 async function sendEmail(env: Env, to: string, subject: string, html: string) {
   console.log(`[email] to=${to} subject="${subject}"`);
-  if (env.RESEND_API_KEY) {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // Self-hosted path: MailChannels relay (free, no SaaS). Needs DKIM + SPF on the domain.
+  if (env.MAILCHANNELS_DKIM_DOMAIN && env.MAILCHANNELS_DKIM_PRIVATE_KEY) {
+    const fromEmail = env.MAIL_FROM || `noreply@${env.MAILCHANNELS_DKIM_DOMAIN}`;
+    try {
+      const r = await fetch('https://api.mailchannels.net/tx/v1/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{
+            to: [{ email: to }],
+            dkim_domain: env.MAILCHANNELS_DKIM_DOMAIN,
+            dkim_selector: env.MAILCHANNELS_DKIM_SELECTOR || 'mailchannels',
+            dkim_private_key: env.MAILCHANNELS_DKIM_PRIVATE_KEY,
+          }],
+          from: { email: fromEmail, name: 'HostelHub' },
+          subject,
+          content: [
+            { type: 'text/plain', value: text },
+            { type: 'text/html', value: html },
+          ],
+        }),
+      });
+      if (!r.ok) console.log('[email] mailchannels error:', r.status, await r.text());
+    } catch (e) {
+      console.log('[email] mailchannels error:', e);
+    }
+  } else if (env.RESEND_API_KEY) {
     try {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
