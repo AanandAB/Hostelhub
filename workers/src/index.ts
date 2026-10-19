@@ -7,6 +7,8 @@
  * Resend/SendGrid later without changing call sites.
  */
 
+import { createAuth } from './auth';
+
 export interface Env {
   DB: D1Database;
   JWT_SECRET?: string;
@@ -425,6 +427,11 @@ export default {
     try {
       // ── Health ──────────────────────────────────────────────────────────
       if (method === 'GET' && path === '/health') return cors(json({ status: 'ok' }));
+
+      // ── better-auth (self-hosted auth) — mounted at /api/auth/* ──────────
+      if (path.startsWith('/api/auth')) {
+        return cors(await createAuth(env).handler(req));
+      }
 
       // ── Auth ────────────────────────────────────────────────────────────
       if (method === 'POST' && path === '/auth/register') {
