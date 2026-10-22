@@ -1,0 +1,55 @@
+name: Deploy web to Cloudflare Pages
+
+# Cloudflare's own build image does not ship the Flutter SDK, so the web build
+# runs here (cached Flutter SDK) and the output is uploaded to Pages with
+# wrangler. Requires two repository secrets:
+#   CLOUDFLARE_API_TOKEN   — token with "Cloudflare Pages: Edit" on the account
+#   CLOUDFLARE_ACCOUNT_ID  — f009301db3ee90ed5c3ad7db686d50df
+# Optional repository variables:
+#   PAGES_PROJECT          — Pages project name (default: hostelhub)
+#   CLOUDFLARE_BASE_URL    — API base URL baked into the build
+#                            (default: https://hostelhub.mynilamhousing.workers.dev)
+
+on:
+  push:
+    branches: [Noconfig, main]
+    paths:
+      - 'hostelhub/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Build web
+        working-directory: hostelhub
+        env:
+          API_BASE_URL: ${{ vars.CLOUDFLARE_BASE_URL || 'https://hostelhub.mynilamhousing.workers.dev' }}
+        run: |
+          flutter pub get
+          flutter build web --release \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy hostelhub/build/web
+            --project-name ${{ vars.PAGES_PROJECT || 'hostelhub' }}
+            --branch main
