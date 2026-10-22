@@ -188,7 +188,7 @@ Everything runs on Cloudflare, in one account, built from the `Noconfig` branch:
 
 | Piece | Where | URL |
 | --- | --- | --- |
-| Flutter **web** app | Cloudflare Pages project `hostelhub` | https://hostelhub-2rt.pages.dev |
+| Flutter **web** app | Cloudflare Pages project `hostelhub` | https://hostelhub.mynilam.in (custom domain) · https://hostelhub-2rt.pages.dev |
 | REST **API** | Worker `hostelhub` (Workers + D1 + better-auth) | https://hostelhub.mynilamhousing.workers.dev |
 | Database | D1 database `hostelhub` (`74e05d70-4ddf-4494-a10f-c8a96cdcd4e4`, APAC) | — |
 
