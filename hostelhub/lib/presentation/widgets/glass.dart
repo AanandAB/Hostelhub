@@ -5,6 +5,29 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 
+/// Marks a subtree as already sitting on an app-wide [GlassBackground].
+///
+/// On web the backdrop is painted once at the root, full-bleed, so screens can
+/// be laid out in a centred content column without the gradient stopping at the
+/// column edge. Any nested [GlassBackground] then renders as a pass-through
+/// instead of painting a second, slightly misaligned gradient.
+class GlassScope extends InheritedWidget {
+  final bool transparent;
+  const GlassScope({
+    super.key,
+    required this.transparent,
+    required super.child,
+  });
+
+  static bool isTransparent(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassScope>()?.transparent ??
+      false;
+
+  @override
+  bool updateShouldNotify(GlassScope oldWidget) =>
+      oldWidget.transparent != transparent;
+}
+
 /// Layered gradient backdrop with blurred abstract blobs. Gives the frosted
 /// cards something to refract and is the base of every screen.
 class GlassBackground extends StatelessWidget {
@@ -14,72 +37,100 @@ class GlassBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (GlassScope.isTransparent(context)) return child;
+
     final a = dark ? AppColors.baseDarkA : AppColors.baseLightA;
     final b = dark ? AppColors.baseDarkB : AppColors.baseLightB;
     final primary = dark ? AppColors.primaryDark : AppColors.primary;
     final accent = dark ? AppColors.accentDark : AppColors.accent;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [a, b],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -120,
-            left: -80,
-            child: IgnorePointer(
-              child: Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [primary.withValues(alpha: 0.35), Colors.transparent],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Fill the space we were given. Screens whose body sits in a loose
+        // (bounded) slot would otherwise shrink-wrap the gradient to the
+        // content height, leaving a flat band of Scaffold colour below it.
+        // Unbounded axes keep the old content-driven behaviour.
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : null;
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : null;
+
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [a, b],
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -120,
+                left: -80,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 320,
+                    height: 320,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          primary.withValues(alpha: 0.35),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: -140,
-            right: -100,
-            child: IgnorePointer(
-              child: Container(
-                width: 380,
-                height: 380,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [accent.withValues(alpha: 0.30), Colors.transparent],
+              Positioned(
+                bottom: -140,
+                right: -100,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 380,
+                    height: 380,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          accent.withValues(alpha: 0.30),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            top: 260,
-            right: 40,
-            child: IgnorePointer(
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [Colors.white.withValues(alpha: 0.25), Colors.transparent],
+              Positioned(
+                top: 260,
+                right: 40,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.25),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+              child,
+            ],
           ),
-          child,
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -106,7 +157,8 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = tint ?? (isDark ? AppColors.glassDark : AppColors.glassLight);
+    final surface =
+        tint ?? (isDark ? AppColors.glassDark : AppColors.glassLight);
     final border = Colors.white.withValues(alpha: isDark ? 0.12 : 0.5);
 
     final card = ClipRRect(
@@ -155,7 +207,8 @@ class GlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = color ??
+    final primary =
+        color ??
         (Theme.of(context).brightness == Brightness.dark
             ? AppColors.primaryDark
             : AppColors.primary);

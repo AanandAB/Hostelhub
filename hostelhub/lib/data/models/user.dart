@@ -1,4 +1,6 @@
-/// A person in the system: owner/manager, inmate/ward, or sub-manager.
+// A person in the system: owner/manager, inmate/ward, or sub-manager.
+import 'json_util.dart';
+
 enum UserRole { owner, inmate, subManager, admin }
 
 class User {
@@ -31,7 +33,7 @@ class User {
         phone: json['phone'] as String,
         email: json['email'] as String? ?? '',
         username: json['username'] as String,
-        kycVerified: json['kyc_verified'] as bool? ?? false,
+        kycVerified: jsonBool(json['kyc_verified']),
       );
 
   Map<String, dynamic> toJson() => {

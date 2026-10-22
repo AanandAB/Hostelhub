@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/property.dart';
 import '../../data/models/room.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 
@@ -33,7 +34,10 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
     if (no.isEmpty) return;
     final cap = int.tryParse(_capacity.text.trim()) ?? 2;
     try {
-      await ref.read(backendProvider).rooms.createRoom(
+      await ref
+          .read(backendProvider)
+          .rooms
+          .createRoom(
             Room(id: '', propertyId: prop.id, roomNo: no, capacity: cap),
           );
       ref.invalidate(roomsProvider(prop.id));
@@ -59,18 +63,19 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                 Text('Add room', style: textTheme.titleLarge),
                 const SizedBox(height: 16),
                 GlassTextField(
-                    controller: _roomNo,
-                    label: 'Room no.',
-                    icon: Icons.door_sliding_outlined),
+                  controller: _roomNo,
+                  label: 'Room no.',
+                  icon: Icons.door_sliding_outlined,
+                ),
                 const SizedBox(height: 12),
                 GlassTextField(
-                    controller: _capacity,
-                    label: 'Beds',
-                    icon: Icons.bed_outlined,
-                    keyboardType: TextInputType.number),
+                  controller: _capacity,
+                  label: 'Beds',
+                  icon: Icons.bed_outlined,
+                  keyboardType: TextInputType.number,
+                ),
                 const SizedBox(height: 16),
-                GlassButton(
-                    label: 'Add room', onPressed: () => _addRoom(prop)),
+                GlassButton(label: 'Add room', onPressed: () => _addRoom(prop)),
               ],
             ),
           ),
@@ -128,7 +133,8 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, _) => Center(
-              child: Text('Error loading hostel', style: textTheme.bodyMedium)),
+            child: Text('Error loading hostel', style: textTheme.bodyMedium),
+          ),
         ),
       ),
     );
@@ -177,8 +183,10 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
             data: (rooms) {
               final inmates = inmatesAsync.value ?? const [];
               if (rooms.isEmpty) {
-                return Text('No rooms yet — add your first room.',
-                    style: textTheme.bodyMedium);
+                return Text(
+                  'No rooms yet — add your first room.',
+                  style: textTheme.bodyMedium,
+                );
               }
               return Wrap(
                 spacing: 10,
@@ -186,7 +194,10 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                 children: [
                   for (final r in rooms)
                     _roomCard(
-                        r, inmates.where((i) => i.roomId == r.id).length, primary),
+                      r,
+                      inmates.where((i) => i.roomId == r.id).length,
+                      primary,
+                    ),
                 ],
               );
             },
@@ -200,14 +211,19 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
         const SizedBox(height: 12),
         inmatesAsync.when(
           data: (inmates) => inmates.isEmpty
-              ? Text('No inmates yet — add your first inmate.',
-                  style: textTheme.bodyMedium)
-              : Column(
+              ? Text(
+                  'No inmates yet — add your first inmate.',
+                  style: textTheme.bodyMedium,
+                )
+              : AdaptiveGrid(
+                  minItemWidth: 320,
                   children: [
                     for (final i in inmates)
                       GlassCard(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         onTap: () => context.push('/inmates/${i.id}'),
                         child: Row(
                           children: [
@@ -218,8 +234,11 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                                 shape: BoxShape.circle,
                                 color: primary.withValues(alpha: 0.16),
                               ),
-                              child:
-                                  Icon(Icons.person_rounded, size: 20, color: primary),
+                              child: Icon(
+                                Icons.person_rounded,
+                                size: 20,
+                                color: primary,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -228,14 +247,18 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
                                 children: [
                                   Text(i.name, style: textTheme.titleMedium),
                                   Text(
-                                      i.roomNo.isNotEmpty
-                                          ? 'Room ${i.roomNo} · Bed ${i.bedNo}'
-                                          : 'Tenant',
-                                      style: textTheme.bodySmall),
+                                    i.roomNo.isNotEmpty
+                                        ? 'Room ${i.roomNo} · Bed ${i.bedNo}'
+                                        : 'Tenant',
+                                    style: textTheme.bodySmall,
+                                  ),
                                 ],
                               ),
                             ),
-                            Text('₹${i.rentAmount}', style: textTheme.titleMedium),
+                            Text(
+                              '₹${i.rentAmount}',
+                              style: textTheme.titleMedium,
+                            ),
                           ],
                         ),
                       ),
@@ -251,8 +274,9 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
 
   Widget _roomCard(Room room, int occupied, Color primary) {
     final textTheme = Theme.of(context).textTheme;
-    final pct =
-        room.capacity == 0 ? 0.0 : (occupied / room.capacity).clamp(0.0, 1.0);
+    final pct = room.capacity == 0
+        ? 0.0
+        : (occupied / room.capacity).clamp(0.0, 1.0);
     return GlassCard(
       padding: const EdgeInsets.all(14),
       child: SizedBox(
@@ -262,7 +286,10 @@ class _InmatesScreenState extends ConsumerState<InmatesScreen> {
           children: [
             Text('Room ${room.roomNo}', style: textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('$occupied / ${room.capacity} beds', style: textTheme.bodySmall),
+            Text(
+              '$occupied / ${room.capacity} beds',
+              style: textTheme.bodySmall,
+            ),
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),

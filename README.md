@@ -182,6 +182,58 @@ The IP, port and backend default live in `lib/core/config/app_config.dart`; the
 
 ---
 
+## Live deployment (Cloudflare)
+
+Everything runs on Cloudflare, in one account, built from the `Noconfig` branch:
+
+| Piece | Where | URL |
+| --- | --- | --- |
+| Flutter **web** app | Cloudflare Pages project `hostelhub` | https://hostelhub-2rt.pages.dev |
+| REST **API** | Worker `hostelhub` (Workers + D1 + better-auth) | https://hostelhub.mynilamhousing.workers.dev |
+| Database | D1 database `hostelhub` (`74e05d70-4ddf-4494-a10f-c8a96cdcd4e4`, APAC) | — |
+
+The web build is compiled with `BACKEND=cloudflare`; `AppConfig.cloudflareBaseUrl`
+also defaults to the Worker URL, so a plain `flutter build web` in this branch is
+pointed at production.
+
+### Redeploy from source
+
+```bash
+# 1. API (Worker + D1)
+cd workers
+npm install
+npx wrangler d1 execute hostelhub --remote --file=./schema.sql          # base schema
+npx wrangler d1 execute hostelhub --remote --file=./migrate_autopay.sql # inmate autopay column
+npx wrangler d1 execute hostelhub --remote --file=./migrate_visitors.sql
+npx wrangler d1 execute hostelhub --remote --file=./apply_better_auth.sql
+npx wrangler deploy
+
+# 2. Web app (Pages)
+cd hostelhub
+flutter build web --release \
+  --dart-define=BACKEND=cloudflare \
+  --dart-define=CLOUDFLARE_BASE_URL=https://hostelhub.mynilamhousing.workers.dev
+cd ../workers && npx wrangler pages deploy ../hostelhub/build/web \
+  --project-name hostelhub --branch main
+```
+
+Secrets required by the Worker: `JWT_SECRET` and `BETTER_AUTH_SECRET`
+(`npx wrangler secret put ...`). Email delivery additionally needs
+`RESEND_API_KEY` (or a MailChannels/DKIM setup); without it, mail is logged to
+the Worker console.
+
+### Web layout notes
+
+- The gradient backdrop is painted once at the app root; screens are transparent
+  through `GlassScope`, so content can be centred without the background
+  stopping at a column edge.
+- `lib/presentation/widgets/layout.dart` holds the breakpoints (720 / 1024),
+  the 1180px workspace cap and the inset helpers used by forms and lists.
+- Dashboard cards and the inmates list reflow (2 columns on phones, up to 4 on
+  desktop); forms are capped at 430–700px.
+
+---
+
 ## Configuration
 
 All environment-specific values are injected at build/run time via `--dart-define`

@@ -1,4 +1,6 @@
-/// A notice-board announcement posted by the owner/warden.
+// A notice-board announcement posted by the owner/warden.
+import 'json_util.dart';
+
 class Notice {
   final String id;
   final String propertyId;
@@ -24,7 +26,7 @@ class Notice {
         title: json['title'] as String,
         body: json['body'] as String? ?? '',
         category: json['category'] as String? ?? 'general',
-        pinned: json['pinned'] as bool? ?? false,
+        pinned: jsonBool(json['pinned']),
         createdAt: json['created_at'] as String?,
       );
 

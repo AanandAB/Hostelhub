@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 
 /// Password-reset step 1: enter the email on file. The server always returns
@@ -67,7 +68,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+              padding: context.formInsets(vertical: 24),
               child: _sent
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,

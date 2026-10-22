@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="description" content="HostelHub — run your hostel from one dashboard. Rent, mess polls, complaints, visitors, expenses and more, for owners and residents.">
+  <meta name="theme-color" content="#5B7FFF">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HostelHub">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>HostelHub</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(circle at 20% 10%, #1b1b2a 0%, #0e0e16 60%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      color: #f2f3f7;
+      transition: opacity .35s ease;
+      z-index: 10;
+    }
+    #boot .mark {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+    #boot .mark span { color: #5B7FFF; }
+    #boot .tag { font-size: 13px; color: #9aa0b4; }
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 3px solid rgba(91,127,255,.22);
+      border-top-color: #5B7FFF;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="boot">
+    <div class="mark">Hostel<span>Hub</span></div>
+    <div class="spinner"></div>
+    <div class="tag">Loading your hostel…</div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Fade the boot screen out once Flutter paints its first frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var boot = document.getElementById('boot');
+      if (!boot) return;
+      boot.style.opacity = '0';
+      setTimeout(function () { boot.remove(); }, 400);
+    });
+  </script>
+</body>
+</html>

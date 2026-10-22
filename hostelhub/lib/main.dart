@@ -3,41 +3,49 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'presentation/widgets/glass.dart';
+import 'presentation/widgets/responsive_frame.dart';
 
 void main() {
   // Surface runtime build errors instead of a blank white screen, so we can
   // see the real exception when a page fails to build.
   ErrorWidget.builder = (details) => Material(
-        color: const Color(0xFF12121F),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Something went wrong on this screen',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text(
-                    details.exceptionAsString(),
-                    style: const TextStyle(
-                        color: Color(0xFFFF8A80), fontSize: 12, height: 1.4),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Please screenshot this and send it, so we can fix it.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
+    color: const Color(0xFF12121F),
+    child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Something went wrong on this screen',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(
+                  color: Color(0xFFFF8A80),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Please screenshot this and send it, so we can fix it.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   runApp(const ProviderScope(child: HostelHubApp()));
 }
@@ -55,6 +63,31 @@ class HostelHubApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
+      // One full-bleed gradient for the whole app (so the backdrop runs edge to
+      // edge instead of stopping at the content column), then a wide, centred
+      // layout frame for desktop browsers. Screens become transparent via
+      // GlassScope so nothing paints a second, misaligned gradient.
+      builder: (context, child) {
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: GlassBackground(
+                  dark: dark,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: GlassScope(
+                transparent: true,
+                child: ResponsiveFrame(child: child ?? const SizedBox.shrink()),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

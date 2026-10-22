@@ -36,9 +36,11 @@ class AppConfig {
       );
 
   /// Base URL of the Cloudflare Workers backend (see workers/).
+  /// Defaults to the deployed production Worker; override with
+  /// `--dart-define=CLOUDFLARE_BASE_URL=...` for a staging deployment.
   static String get cloudflareBaseUrl => const String.fromEnvironment(
         'CLOUDFLARE_BASE_URL',
-        defaultValue: '',
+        defaultValue: 'https://hostelhub.mynilamhousing.workers.dev',
       );
 
   // ── Supabase (placeholder) ─────────────────────────────────────────────────

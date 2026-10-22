@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/property.dart';
 import '../../data/models/room.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../auth/auth_controller.dart';
 import 'hostel_providers.dart';
@@ -159,7 +160,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         dark: isDark,
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: context.formInsets(maxFormWidth: 700, vertical: 8),
             child: _step == 0 ? _stepProperty(textTheme) : _stepRooms(textTheme),
           ),
         ),

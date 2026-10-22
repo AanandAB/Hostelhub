@@ -14,6 +14,7 @@ import '../../data/models/room.dart';
 import '../../data/models/sos_alert.dart';
 import '../../data/models/user.dart';
 import '../../presentation/widgets/due_ring.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../auth/auth_controller.dart';
 import '../onboarding/hostel_providers.dart';
@@ -92,7 +93,7 @@ class HomeScreen extends ConsumerWidget {
             final primary = isDark ? AppColors.primaryDark : AppColors.primary;
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+              padding: context.pageInsets(maxContentWidth: 1180),
               children: [
                 Text('Welcome back', style: textTheme.bodySmall),
                 const SizedBox(height: 4),
@@ -102,90 +103,56 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _propertySwitcher(context, ref, prop.id),
                 const SizedBox(height: 24),
-                Row(
+                AdaptiveGrid(
+                  minItemWidth: 150,
                   children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.people_alt_rounded,
-                        label: 'Inmates',
-                        value: '${inmates.length}',
-                        accent: primary,
-                      ),
+                    _StatCard(
+                      icon: Icons.people_alt_rounded,
+                      label: 'Inmates',
+                      value: '${inmates.length}',
+                      accent: primary,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.bed_rounded,
-                        label: 'Occupancy',
-                        value: '$occupancyPct%',
-                        accent: AppColors.accent,
-                      ),
+                    _StatCard(
+                      icon: Icons.bed_rounded,
+                      label: 'Occupancy',
+                      value: '$occupancyPct%',
+                      accent: AppColors.accent,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.door_sliding_rounded,
-                        label: 'Rooms',
-                        value: '${rooms.length}',
-                        accent: AppColors.warning,
-                      ),
+                    _StatCard(
+                      icon: Icons.door_sliding_rounded,
+                      label: 'Rooms',
+                      value: '${rooms.length}',
+                      accent: AppColors.warning,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.report_problem_rounded,
-                        label: 'Open complaints',
-                        value: '$openComplaints',
-                        accent: AppColors.danger,
-                      ),
+                    _StatCard(
+                      icon: Icons.report_problem_rounded,
+                      label: 'Open complaints',
+                      value: '$openComplaints',
+                      accent: AppColors.danger,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.currency_rupee,
-                        label: "Today's collection",
-                        value: '₹$todaysCollection',
-                        accent: AppColors.accent,
-                      ),
+                    _StatCard(
+                      icon: Icons.currency_rupee,
+                      label: "Today's collection",
+                      value: '₹$todaysCollection',
+                      accent: AppColors.accent,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.pending_actions_rounded,
-                        label: 'Pending dues',
-                        value: '$pendingDues',
-                        accent: AppColors.warning,
-                      ),
+                    _StatCard(
+                      icon: Icons.pending_actions_rounded,
+                      label: 'Pending dues',
+                      value: '$pendingDues',
+                      accent: AppColors.warning,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.calendar_month_rounded,
-                        label: 'This month',
-                        value: '₹$thisMonthCollection',
-                        accent: AppColors.accent,
-                      ),
+                    _StatCard(
+                      icon: Icons.calendar_month_rounded,
+                      label: 'This month',
+                      value: '₹$thisMonthCollection',
+                      accent: AppColors.accent,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.savings_rounded,
-                        label: 'Total collected',
-                        value: '₹$totalCollected',
-                        accent: primary,
-                      ),
+                    _StatCard(
+                      icon: Icons.savings_rounded,
+                      label: 'Total collected',
+                      value: '₹$totalCollected',
+                      accent: primary,
                     ),
                   ],
                 ),
@@ -572,7 +539,7 @@ class MoreScreen extends ConsumerWidget {
       dark: isDark,
       child: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+          padding: context.pageInsets(),
           children: [
             Text(isOwner ? 'Manage' : 'Menu', style: textTheme.displayLarge),
             const SizedBox(height: 16),

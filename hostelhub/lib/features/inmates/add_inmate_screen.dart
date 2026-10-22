@@ -9,6 +9,7 @@ import '../../data/backend_provider.dart';
 import '../../data/models/inmate.dart';
 import '../../data/models/property.dart';
 import '../../data/models/room.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 
@@ -237,7 +238,7 @@ class _AddInmateScreenState extends ConsumerState<AddInmateScreen> {
         ref.watch(inmatesProvider(prop.id)).value ?? const <Inmate>[];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: context.formInsets(maxFormWidth: 620, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -1,4 +1,6 @@
-/// A mess food poll: "Dinner tomorrow?" with options + scheduling.
+// A mess food poll: "Dinner tomorrow?" with options + scheduling.
+import 'json_util.dart';
+
 class Poll {
   final String id;
   final String propertyId;
@@ -31,7 +33,7 @@ class Poll {
         forDate: json['for_date'] as String,
         sendAt: json['send_at'] as String?,
         closeAt: json['close_at'] as String?,
-        recurring: json['recurring'] as bool? ?? false,
+        recurring: jsonBool(json['recurring']),
         options: List<String>.from(json['options'] as List? ?? const []),
       );
 

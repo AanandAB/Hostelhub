@@ -32,8 +32,14 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor:
-          isDark ? AppColors.baseDarkA : AppColors.baseLightA,
+      // Transparent so the single app-wide backdrop (painted behind the
+      // navigator in main.dart) shows through every screen; the glass cards do
+      // the tinting. Dialogs get an explicit solid colour because they would
+      // otherwise inherit the transparent canvas.
+      scaffoldBackgroundColor: Colors.transparent,
+      dialogTheme: DialogThemeData(
+        backgroundColor: isDark ? AppColors.baseDarkB : AppColors.baseLightB,
+      ),
       // iOS falls back to Flutter's native Cupertino swipe-back by default.
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

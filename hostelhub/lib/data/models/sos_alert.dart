@@ -1,4 +1,6 @@
-/// An emergency SOS alert raised by an inmate.
+// An emergency SOS alert raised by an inmate.
+import 'json_util.dart';
+
 class SosAlert {
   final String id;
   final String propertyId;
@@ -22,7 +24,7 @@ class SosAlert {
         inmateId: json['inmate_id'] as String,
         inmateName: json['inmate_name'] as String? ?? '',
         triggeredAt: json['triggered_at'] as String?,
-        acknowledged: json['acknowledged'] as bool? ?? false,
+        acknowledged: jsonBool(json['acknowledged']),
       );
 
   Map<String, dynamic> toJson() => {

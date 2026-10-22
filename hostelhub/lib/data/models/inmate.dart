@@ -1,5 +1,7 @@
-/// An inmate (ward) onboarded by an owner: personal details plus their room/bed
-/// assignment and rent terms.
+// An inmate (ward) onboarded by an owner: personal details plus their room/bed
+// assignment and rent terms.
+import 'json_util.dart';
+
 class Inmate {
   final String id;
   final String propertyId;
@@ -47,7 +49,7 @@ class Inmate {
         dueDay: json['due_day'] as int? ?? 1,
         joinDate: json['join_date'] as String?,
         checkoutDate: json['checkout_date'] as String?,
-        autopayEnabled: json['autopay_enabled'] as bool? ?? false,
+        autopayEnabled: jsonBool(json['autopay_enabled']),
       );
 
   Map<String, dynamic> toJson() => {

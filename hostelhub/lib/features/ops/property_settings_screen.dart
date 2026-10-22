@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/property.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../onboarding/hostel_providers.dart';
 
@@ -43,7 +44,7 @@ class PropertySettingsScreen extends ConsumerWidget {
   Widget _content(BuildContext context, WidgetRef ref, Property prop) {
     final textTheme = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      padding: context.pageInsets(maxContentWidth: 820, bottom: 40),
       children: [
         GlassCard(
           child: Column(

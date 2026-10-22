@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/backend_provider.dart';
 import '../../data/models/notice.dart';
+import '../../presentation/widgets/layout.dart';
 import '../../presentation/widgets/glass.dart';
 import '../../services/sounds/sound_service.dart';
 import '../auth/auth_controller.dart';
@@ -35,7 +36,7 @@ class NoticesScreen extends ConsumerWidget {
         child: sorted.isEmpty
             ? Center(child: Text('No notices yet.', style: textTheme.bodyMedium))
             : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+                padding: context.pageInsets(maxContentWidth: 860),
                 children: [
                   Text('Notices', style: textTheme.displayLarge),
                   const SizedBox(height: 16),

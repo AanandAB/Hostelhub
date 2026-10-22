@@ -1,4 +1,6 @@
-/// A recurring rent plan for one inmate: amount, due day, autopay, late fee.
+// A recurring rent plan for one inmate: amount, due day, autopay, late fee.
+import 'json_util.dart';
+
 class RentPlan {
   final String id;
   final String inmateId;
@@ -31,7 +33,7 @@ class RentPlan {
         dueDay: json['due_day'] as int,
         graceDays: json['grace_days'] as int? ?? 0,
         lateFeeRule: json['late_fee_rule'] as String?,
-        autopayEnabled: json['autopay_enabled'] as bool? ?? false,
+        autopayEnabled: jsonBool(json['autopay_enabled']),
         mandateId: json['mandate_id'] as String?,
       );
 
