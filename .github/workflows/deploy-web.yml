@@ -28,6 +28,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail with a readable error instead of wrangler's "non-interactive
+      # environment" message when the repository secrets are missing.
+      - name: Check required secrets
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -z "$CF_TOKEN" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CF_ACCOUNT" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing — add them under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.7
@@ -49,6 +64,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.135.0'
           command: >-
             pages deploy hostelhub/build/web
             --project-name ${{ vars.PAGES_PROJECT || 'hostelhub' }}
