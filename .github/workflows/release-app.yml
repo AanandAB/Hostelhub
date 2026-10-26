@@ -1,0 +1,250 @@
+name: Release app (Android + iOS)
+
+# Builds installable artifacts and publishes them to a GitHub Release.
+#
+#   • Android: release APK + AAB
+#   • iOS:     .ipa — signed when the Apple secrets exist, otherwise an
+#              unsigned .ipa (Payload/Runner.app) that still unpacks on CI
+#
+# Triggers:
+#   • push a tag      git tag v1.0.0 && git push origin v1.0.0
+#   • manual          Actions → "Release app (Android + iOS)" → Run workflow
+#
+# Optional repository secrets for a *signed* iOS .ipa:
+#   APPLE_CERT_P12        base64 of the distribution .p12
+#   APPLE_CERT_PASSWORD   password for that .p12
+#   APPLE_PROFILE         base64 of the .mobileprovision
+#   APPLE_TEAM_ID         Apple team id
+#   APPLE_ISSUER_ID / APPLE_API_KEY_ID / APPLE_API_KEY_P8 — only for App Store upload
+# Without them the iOS job still produces an unsigned .ipa and says so in the release.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  API_BASE_URL: ${{ vars.CLOUDFLARE_BASE_URL || 'https://hostelhub.mynilamhousing.workers.dev' }}
+  FLUTTER_VERSION: 3.47.7
+
+jobs:
+  # ------------------------------------------------------------------ meta
+  meta:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      build: ${{ steps.v.outputs.build }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: v
+        name: Read pubspec version
+        run: |
+          RAW=$(grep -m1 '^version:' hostelhub/pubspec.yaml | awk '{print $2}')
+          NAME=${RAW%%+*}
+          BUILD=${RAW##*+}
+          [ "$BUILD" = "$RAW" ] && BUILD=1
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "version=$NAME" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD"   >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
+          echo "pubspec=$RAW  tag=$TAG"
+
+  # --------------------------------------------------------------- android
+  android:
+    name: Android (APK + AAB)
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build APK and AAB
+        working-directory: hostelhub
+        run: |
+          flutter pub get
+          flutter build apk --release \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+          flutter build appbundle --release \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Package
+        run: |
+          V="${{ needs.meta.outputs.version }}"
+          B="${{ needs.meta.outputs.build }}"
+          mkdir -p dist
+          cp hostelhub/build/app/outputs/flutter-apk/app-release.apk "dist/hostelhub-android-${V}-${B}.apk"
+          cp hostelhub/build/app/outputs/bundle/release/app-release.aab "dist/hostelhub-android-${V}-${B}.aab"
+          # Stable alias name → /releases/latest/download/hostelhub-android-latest.apk
+          cp "dist/hostelhub-android-${V}-${B}.apk" dist/hostelhub-android-latest.apk
+          cd dist && sha256sum *.apk *.aab > SHA256SUMS-android.txt
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*
+          retention-days: 30
+
+  # ------------------------------------------------------------------- ios
+  ios:
+    name: iOS (.ipa)
+    needs: meta
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+      CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      PROFILE: ${{ secrets.APPLE_PROFILE }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Import signing identity
+        if: env.CERT_P12 != ''
+        run: |
+          KEYCHAIN=build.keychain
+          security create-keychain -p actions "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          echo "$CERT_P12" | base64 -d > /tmp/cert.p12
+          security import /tmp/cert.p12 -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          echo "Signing identity installed for team ${TEAM_ID:-unknown}"
+
+      - name: Build signed .ipa
+        if: env.CERT_P12 != ''
+        working-directory: hostelhub
+        run: |
+          flutter pub get
+          flutter build ipa --release \
+            --export-method ad-hoc \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Build unsigned .app
+        if: env.CERT_P12 == ''
+        working-directory: hostelhub
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Package
+        run: |
+          V="${{ needs.meta.outputs.version }}"
+          B="${{ needs.meta.outputs.build }}"
+          mkdir -p dist
+          if [ -f "hostelhub/build/ios/ipa/Runner.ipa" ]; then
+            cp hostelhub/build/ios/ipa/Runner.ipa "dist/hostelhub-ios-${V}-${B}.ipa"
+            echo "signed=true" >> "$GITHUB_ENV"
+          else
+            # No certificate: still ship a valid .ipa layout, clearly labelled unsigned.
+            APP=hostelhub/build/ios/iphoneos/Runner.app
+            [ -d "$APP" ] || { echo "::error::Runner.app not found"; exit 1; }
+            rm -rf /tmp/ipa && mkdir -p /tmp/ipa/Payload
+            cp -R "$APP" /tmp/ipa/Payload/
+            (cd /tmp/ipa && zip -qry "hostelhub-ios-${V}-${B}-unsigned.ipa" Payload)
+            cp "/tmp/ipa/hostelhub-ios-${V}-${B}-unsigned.ipa" dist/
+            echo "signed=false" >> "$GITHUB_ENV"
+          fi
+          cp dist/hostelhub-ios-*.ipa dist/hostelhub-ios-latest.ipa
+          cd dist && sha256sum *.ipa > SHA256SUMS-ios.txt
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/*
+          retention-days: 30
+
+  # --------------------------------------------------------------- release
+  release:
+    name: Publish release
+    needs: [meta, android, ios]
+    if: always() && needs.android.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten
+        run: |
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
+          ls -lh dist
+
+      - name: Compose release notes
+        run: |
+          V="${{ needs.meta.outputs.version }}"
+          B="${{ needs.meta.outputs.build }}"
+          IOS="${{ needs.ios.result }}"
+          cat > notes.md <<EOF
+          Automated build of **HostelHub ${V} (${B})** from \`${{ needs.meta.outputs.tag }}\`.
+
+          | Platform | Asset | Notes |
+          | --- | --- | --- |
+          | Android | \`hostelhub-android-${V}-${B}.apk\` | debug-signed, installs on any phone |
+          | Android | \`hostelhub-android-${V}-${B}.aab\` | Play Store upload bundle |
+          | iOS | \`hostelhub-ios-*.ipa\` | job result: ${IOS} — unsigned builds need your own signing to install |
+
+          Stable links (always the newest release):
+          - APK: \`/releases/latest/download/hostelhub-android-latest.apk\`
+          - IPA: \`/releases/latest/download/hostelhub-ios-latest.ipa\`
+
+          Checksums are attached as \`SHA256SUMS-android.txt\` / \`SHA256SUMS-ios.txt\`.
+
+          Verify an APK: \`sha256sum -c SHA256SUMS-android.txt\`
+          EOF
+          echo "notes written"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: HostelHub ${{ needs.meta.outputs.version }} (${{ needs.meta.outputs.build }})
+          body_path: notes.md
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+          files: dist/*
+          fail_on_unmatched_files: false
+          overwrite_files: true
