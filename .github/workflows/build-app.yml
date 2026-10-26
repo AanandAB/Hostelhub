@@ -1,0 +1,130 @@
+name: Build app artifacts (APK + iOS)
+
+# Builds installable artifacts without a local Android SDK / Xcode:
+#   • Android release APK   (debug-signed by default until a keystore is added)
+#   • iOS unsigned .app     (cannot be installed on a device until signed)
+#
+# Both are uploaded as workflow artifacts and attached to the "qa-latest"
+# release, so the QA repo can fetch them with APK_URL without a token.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/build-app]
+    paths:
+      - 'hostelhub/**'
+      - '.github/workflows/build-app.yml'
+
+permissions:
+  contents: write
+
+env:
+  API_BASE_URL: ${{ vars.CLOUDFLARE_BASE_URL || 'https://hostelhub.mynilamhousing.workers.dev' }}
+  FLUTTER_VERSION: 3.47.7
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build release APK
+        working-directory: hostelhub
+        run: |
+          flutter pub get
+          flutter build apk --release \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Collect artifact
+        run: |
+          mkdir -p dist
+          cp hostelhub/build/app/outputs/flutter-apk/app-release.apk dist/hostelhub-${{ github.sha }}.apk
+          cd dist && sha256sum *.apk > SHA256SUMS-android.txt
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hostelhub-apk
+          path: dist/*
+          retention-days: 30
+
+  ios:
+    name: iOS unsigned .app
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build iOS (no codesign)
+        working-directory: hostelhub
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign \
+            --dart-define=BACKEND=cloudflare \
+            --dart-define=CLOUDFLARE_BASE_URL="$API_BASE_URL"
+
+      - name: Package Runner.app
+        run: |
+          mkdir -p dist
+          APP=hostelhub/build/ios/iphoneos/Runner.app
+          if [ ! -d "$APP" ]; then
+            echo "::error::Runner.app not found — iOS build did not produce a device bundle"
+            exit 1
+          fi
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP" dist/hostelhub-ios-unsigned-${{ github.sha }}.zip
+          cd dist && shasum -a 256 *.zip > SHA256SUMS-ios.txt
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hostelhub-ios
+          path: dist/*
+          retention-days: 30
+
+  release:
+    name: Publish to qa-latest
+    needs: [android, ios]
+    if: always() && needs.android.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten
+        run: |
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
+          ls -lh dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: qa-latest
+          name: QA build (latest)
+          body: |
+            Automated QA artifacts built from `${{ github.ref_name }}` @ `${{ github.sha }}`.
+
+            - `hostelhub-<sha>.apk` — Android release APK (debug-signed)
+            - `hostelhub-ios-unsigned-<sha>.zip` — unsigned Runner.app, needs signing to install
+          files: dist/*
+          fail_on_unmatched_files: false
