@@ -53,6 +53,8 @@ jobs:
         run: |
           mkdir -p dist
           cp hostelhub/build/app/outputs/flutter-apk/app-release.apk dist/hostelhub-${{ github.sha }}.apk
+          # Stable name so CI can use /releases/latest/download/hostelhub-latest.apk
+          cp dist/hostelhub-${{ github.sha }}.apk dist/hostelhub-latest.apk
           cd dist && sha256sum *.apk > SHA256SUMS-android.txt
           ls -lh
 
@@ -92,6 +94,7 @@ jobs:
             exit 1
           fi
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP" dist/hostelhub-ios-unsigned-${{ github.sha }}.zip
+          cp dist/hostelhub-ios-unsigned-${{ github.sha }}.zip dist/hostelhub-ios-unsigned-latest.zip
           cd dist && shasum -a 256 *.zip > SHA256SUMS-ios.txt
           ls -lh
 
