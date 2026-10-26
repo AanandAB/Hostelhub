@@ -108,7 +108,7 @@ jobs:
           cp hostelhub/build/app/outputs/bundle/release/app-release.aab "dist/hostelhub-android-${V}-${B}.aab"
           # Stable alias name → /releases/latest/download/hostelhub-android-latest.apk
           cp "dist/hostelhub-android-${V}-${B}.apk" dist/hostelhub-android-latest.apk
-          cd dist && sha256sum *.apk *.aab > SHA256SUMS-android.txt
+          cd dist && shasum -a 256 *.apk *.aab > SHA256SUMS-android.txt
           ls -lh
 
       - uses: actions/upload-artifact@v4
@@ -189,7 +189,7 @@ jobs:
             echo "signed=false" >> "$GITHUB_ENV"
           fi
           cp dist/hostelhub-ios-*.ipa dist/hostelhub-ios-latest.ipa
-          cd dist && sha256sum *.ipa > SHA256SUMS-ios.txt
+          cd dist && shasum -a 256 *.ipa > SHA256SUMS-ios.txt
           ls -lh
 
       - uses: actions/upload-artifact@v4
@@ -235,7 +235,7 @@ jobs:
 
           Checksums are attached as \`SHA256SUMS-android.txt\` / \`SHA256SUMS-ios.txt\`.
 
-          Verify an APK: \`sha256sum -c SHA256SUMS-android.txt\`
+          Verify an APK: \`shasum -a 256 -c SHA256SUMS-android.txt\` (Linux: \`sha256sum -c\`)
           EOF
           echo "notes written"
 
